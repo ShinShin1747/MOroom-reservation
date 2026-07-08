@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>装置予約システム</title>
-  <link rel="stylesheet" href="style_v5.css?v=20260708-maintenance-v11" />
+  <link rel="stylesheet" href="style_v5.css?v=20260708-maintenance-v12" />
 </head>
 <body>
   <header class="site-header">
@@ -21,6 +21,10 @@
       <div class="toolbar">
         <div class="tabs" id="equipmentTabs"></div>
         <div class="toolbar-actions">
+          <label class="month-jump" for="monthPicker">
+            <span>月選択</span>
+            <input id="monthPicker" type="month" />
+          </label>
           <button type="button" id="prevWeek">← 前週</button>
           <button type="button" id="todayBtn">今週</button>
           <button type="button" id="nextWeek">次週 →</button>
@@ -151,7 +155,7 @@
     <span>全員で共有する場合は、<code>config.js</code> にGoogle Apps ScriptのURLを設定してください。</span>
   </footer>
 
-  <script src="config.js?v=20260708-maintenance-v11"></script>
-  <script src="script_v5.js?v=20260708-maintenance-v11"></script>
+  <script src="config.js?v=20260708-maintenance-v12"></script>
+  <script src="script_v5.js?v=20260708-maintenance-v12"></script>
 </body>
 </html>

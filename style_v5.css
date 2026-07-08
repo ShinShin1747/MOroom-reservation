@@ -213,6 +213,35 @@ code { background: #eef2f6; padding: 2px 5px; border-radius: 5px; }
 
 .field-note { display: block; margin-top: 6px; color: #64748b; font-size: 0.85rem; line-height: 1.4; }
 
+/* month selector */
+.month-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text);
+}
+.month-jump span {
+  white-space: nowrap;
+}
+.month-jump input {
+  width: 9.2rem;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  padding: 2px 0 2px 8px;
+  font-size: 0.88rem;
+  background: transparent;
+}
+.month-jump input:focus {
+  outline: none;
+}
+
 /* maintenance form */
 .checkbox-panel {
   border: 1px solid var(--line);

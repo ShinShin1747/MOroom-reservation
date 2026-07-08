@@ -25,6 +25,7 @@ const els = {
   tabs: document.getElementById('equipmentTabs'),
   equipment: document.getElementById('equipment'),
   weekTitle: document.getElementById('weekTitle'),
+  monthPicker: document.getElementById('monthPicker'),
   calendarHead: document.querySelector('#calendarTable thead'),
   calendarBody: document.querySelector('#calendarTable tbody'),
   list: document.getElementById('reservationList'),
@@ -58,6 +59,9 @@ function bindEvents() {
   document.getElementById('prevWeek').addEventListener('click', () => moveWeek(-7));
   document.getElementById('todayBtn').addEventListener('click', () => { state.weekStart = startOfWeek(new Date()); renderAll(); });
   document.getElementById('nextWeek').addEventListener('click', () => moveWeek(7));
+  if (els.monthPicker) {
+    els.monthPicker.addEventListener('change', () => jumpToMonth(els.monthPicker.value));
+  }
   document.getElementById('reloadBtn').addEventListener('click', loadReservations);
   els.form.addEventListener('submit', handleSubmit);
   els.equipment.addEventListener('change', () => {
@@ -190,6 +194,7 @@ function renderAll() {
 
 function renderCalendar() {
   const dates = [...Array(7)].map((_, i) => addDays(state.weekStart, i));
+  syncMonthPicker();
   const maintenanceView = isMaintenanceView();
   els.weekTitle.textContent = maintenanceView
     ? `メンテ情報：${formatDate(dates[0])} ~ ${formatDate(dates[6])}`
@@ -343,10 +348,22 @@ function isOverlap(a, b) {
 function sortByTime(a, b) { return (a.start + a.finish).localeCompare(b.start + b.finish); }
 function sortByEquipmentThenTime(a, b) { return (a.equipment + a.start + a.finish).localeCompare(b.equipment + b.start + b.finish); }
 function sortByDateEquipmentTime(a, b) { return (a.date + a.equipment + a.start + a.finish).localeCompare(b.date + b.equipment + b.start + b.finish); }
+function jumpToMonth(value) {
+  if (!value || !/^\d{4}-\d{2}$/.test(value)) return;
+  const firstDay = new Date(`${value}-01T00:00:00`);
+  if (Number.isNaN(firstDay.getTime())) return;
+  state.weekStart = startOfWeek(firstDay);
+  renderAll();
+}
+function syncMonthPicker() {
+  if (!els.monthPicker) return;
+  els.monthPicker.value = formatMonth(addDays(state.weekStart, 3));
+}
 function moveWeek(days) { state.weekStart = addDays(state.weekStart, days); renderAll(); }
 function startOfWeek(date) { const d = new Date(date); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day); d.setHours(0,0,0,0); return d; }
 function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate() + days); return d; }
 function formatDate(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
+function formatMonth(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`; }
 function weekday(date) { return ['日','月','火','水','木','金','土'][date.getDay()]; }
 function makeId() { return 'R' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase(); }
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
