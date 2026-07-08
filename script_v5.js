@@ -260,7 +260,7 @@ function filteredReservations() {
   const end = formatDate(addDays(state.weekStart, 6));
   return state.reservations.filter(r => {
     if (r.date < start || r.date > end) return false;
-    if (isMaintenanceView()) return Boolean(r.maintenanceTypes);
+    if (isMaintenanceView()) return isMaintenanceOnlyReservation(r);
     return r.equipment === state.equipment;
   });
 }
@@ -442,4 +442,9 @@ function isActualEquipment(value) {
 
 function isMaintenanceView() {
   return state.equipment === MAINTENANCE_TAB_NAME;
+}
+
+function isMaintenanceOnlyReservation(r) {
+  const types = normalizeMaintenanceTypes(r.maintenanceTypes || '').split('、').filter(Boolean);
+  return types.length > 0 && !types.includes(MAINTENANCE_EPI_TYPE);
 }
