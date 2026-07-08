@@ -36,7 +36,6 @@ const els = {
   date: document.getElementById('date'),
   start: document.getElementById('start'),
   finish: document.getElementById('finish'),
-  usage: document.getElementById('usage'),
   remark: document.getElementById('remark'),
   pass: document.getElementById('pass'),
   maintenanceKind: Array.from(document.querySelectorAll('input[name="maintenanceKind"]')),
@@ -164,7 +163,7 @@ function getFormPayload() {
     finish: els.finish.value,
     maintenanceKind: getMaintenanceKind(),
     maintenanceTypes: getSelectedMaintenanceTypes(),
-    usage: els.usage.value.trim(),
+    usage: '',
     remark: els.remark.value.trim(),
     pass: els.pass.value,
   };
@@ -177,7 +176,7 @@ function validatePayload(p) {
   if (!p.equipment || !p.name || !p.date || !p.start || !p.finish || !p.pass) return '必須項目を入力してください。パスワードも必要です。';
   if (p.start >= p.finish) return '終了時刻は開始時刻より後にしてください。';
   if (p.action !== 'delete') {
-    if (p.maintenanceKind !== 'maintenance' && p.maintenanceKind !== 'epi') return 'メンテ情報は、メンテまたはエピのどちらかを必ず選択してください。';
+    if (p.maintenanceKind !== 'maintenance' && p.maintenanceKind !== 'epi') return '使用目的は、メンテまたはエピのどちらかを必ず選択してください。';
     if (p.maintenanceKind === 'maintenance' && !p.maintenanceTypes) return 'メンテを選択した場合は、原料交換・重故障・除害停止・定常メンテから1つ以上選択してください。';
   }
   return '';
@@ -218,8 +217,7 @@ function renderList() {
       <div class="card-title">${escapeHtml(r.date)} ${escapeHtml(r.start)}-${escapeHtml(r.finish)}</div>
       <div class="card-line"><span class="label">装置</span><span>${escapeHtml(r.equipment)}</span></div>
       <div class="card-line"><span class="label">名前</span><span>${escapeHtml(r.name)}</span></div>
-      ${r.maintenanceTypes ? `<div class="card-line"><span class="label">メンテ情報</span><span class="maintenance-tags">${maintenanceTagsHtml(r.maintenanceTypes)}</span></div>` : ''}
-      ${r.usage ? `<div class="card-line"><span class="label">使用目的</span><span>${escapeHtml(r.usage)}</span></div>` : ''}
+      ${r.maintenanceTypes ? `<div class="card-line"><span class="label">使用目的</span><span class="maintenance-tags">${maintenanceTagsHtml(r.maintenanceTypes)}</span></div>` : ''}
       ${r.remark ? `<div class="card-line"><span class="label">備考</span><span>${escapeHtml(r.remark)}</span></div>` : ''}
       <div class="card-meta">予約ID: ${escapeHtml(r.id)}</div>
     </article>`).join('');
@@ -233,7 +231,6 @@ function eventHtml(r) {
     ${maintenanceView ? `<span class="event-value event-equipment">${eventText(r.equipment)}</span>` : ''}
     <span class="event-value">${eventText(r.name)}</span>
     ${r.maintenanceTypes ? `<span class="event-badges">${maintenanceTagsHtml(r.maintenanceTypes)}</span>` : ''}
-    ${r.usage ? `<span class="event-value">${eventText(r.usage)}</span>` : ''}
     ${r.remark ? `<span class="event-value event-remark">${eventText(r.remark)}</span>` : ''}
     <small class="event-id">予約ID: ${escapeHtml(r.id)}</small>
   </button>`;
@@ -251,7 +248,6 @@ function fillForm(id) {
   els.date.value = r.date;
   els.start.value = r.start;
   els.finish.value = r.finish;
-  els.usage.value = r.usage || '';
   els.remark.value = r.remark || '';
   setMaintenanceTypes(r.maintenanceTypes || '');
   els.pass.value = '';

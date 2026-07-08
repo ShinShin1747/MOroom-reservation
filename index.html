@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>装置予約システム</title>
-  <link rel="stylesheet" href="style_v5.css?v=20260708-maintenance-v9" />
+  <link rel="stylesheet" href="style_v5.css?v=20260708-maintenance-v10" />
 </head>
 <body>
   <header class="site-header">
@@ -80,10 +80,10 @@
         </div>
 
         <fieldset class="checkbox-panel maintenance-input-panel">
-          <legend>メンテ情報</legend>
+          <legend>使用目的</legend>
 
           <div class="maintenance-step">
-            <div class="field-title">分類</div>
+            <div class="field-title">メンテ / エピを選択</div>
             <div class="maintenance-kind-grid">
               <label class="check-option">
                 <input type="radio" name="maintenanceKind" value="maintenance" required />
@@ -118,13 +118,8 @@
             </div>
           </div>
 
-          <small class="field-note">予約時は必ず「メンテ」または「エピ」を選択してください。メンテを選んだ場合は、下の4項目から1つ以上選択してください。メンテ情報タブには、ここで登録された内容が装置別にまとめて表示されます。</small>
+          <small class="field-note">使用目的として必ず「メンテ」または「エピ」を選択してください。メンテを選んだ場合は、下の4項目から1つ以上選択してください。メンテ情報タブには、ここで登録された内容が装置別にまとめて表示されます。</small>
         </fieldset>
-
-        <label>
-          使用目的
-          <input id="usage" name="usage" placeholder="空欄でもOK。例：アニール、PL測定、洗浄" />
-        </label>
 
         <label>
           備考
@@ -156,7 +151,7 @@
     <span>全員で共有する場合は、<code>config.js</code> にGoogle Apps ScriptのURLを設定してください。</span>
   </footer>
 
-  <script src="config.js?v=20260708-maintenance-v9"></script>
-  <script src="script_v5.js?v=20260708-maintenance-v9"></script>
+  <script src="config.js?v=20260708-maintenance-v10"></script>
+  <script src="script_v5.js?v=20260708-maintenance-v10"></script>
 </body>
 </html>
