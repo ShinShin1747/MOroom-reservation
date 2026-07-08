@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Equipment Reservation</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <p class="eyebrow">Welcome</p>
+      <h1>Equipment Reservation</h1>
+      <p class="subtitle">GitHub Pages + JavaScript reservation system</p>
+    </div>
+    <div class="status" id="status">Loading...</div>
+  </header>
+
+  <main class="layout">
+    <section class="panel full">
+      <div class="toolbar">
+        <div class="tabs" id="equipmentTabs"></div>
+        <div class="toolbar-actions">
+          <button type="button" id="prevWeek">← 前週</button>
+          <button type="button" id="todayBtn">今週</button>
+          <button type="button" id="nextWeek">次週 →</button>
+        </div>
+      </div>
+      <h2 id="weekTitle">YYYY-MM-DD ~ YYYY-MM-DD</h2>
+      <div class="calendar-wrap">
+        <table class="calendar" id="calendarTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel form-panel">
+      <h2>Reservation Form</h2>
+      <p class="message" id="message">Message: please fill out this form.</p>
+      <form id="reservationForm">
+        <label>
+          Mode*
+          <select id="mode" name="mode" required>
+            <option value="new">New</option>
+            <option value="edit">Edit</option>
+            <option value="delete">Delete</option>
+          </select>
+        </label>
+
+        <label>
+          Reservation ID
+          <input id="reservationId" name="id" placeholder="Edit/Delete時に自動入力" />
+        </label>
+
+        <label>
+          Equipment*
+          <select id="equipment" name="equipment" required></select>
+        </label>
+
+        <label>
+          Name*
+          <input id="name" name="name" required autocomplete="name" />
+        </label>
+
+        <label>
+          Date*
+          <input id="date" name="date" type="date" required />
+        </label>
+
+        <div class="row2">
+          <label>
+            Start*
+            <input id="start" name="start" type="time" required />
+          </label>
+          <label>
+            Finish*
+            <input id="finish" name="finish" type="time" required />
+          </label>
+        </div>
+
+        <label>
+          Usage*
+          <input id="usage" name="usage" required placeholder="例：annealing, PL, cleaning" />
+        </label>
+
+        <label>
+          Remark
+          <textarea id="remark" name="remark" rows="3"></textarea>
+        </label>
+
+        <label>
+          Pass*
+          <input id="pass" name="pass" type="password" required placeholder="編集・削除用" />
+        </label>
+
+        <button type="submit" class="primary">Submit</button>
+      </form>
+    </section>
+
+    <section class="panel list-panel">
+      <div class="list-header">
+        <h2>Reservations</h2>
+        <button type="button" id="reloadBtn">Reload</button>
+      </div>
+      <div class="hint">予約をクリックするとEdit/Delete用にフォームへ反映されます。</div>
+      <div id="reservationList" class="reservation-list"></div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Data mode: <strong id="dataMode">local</strong></span>
+    <span>For shared use, set Google Apps Script Web App URL in <code>config.js</code>.</span>
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
