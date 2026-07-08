@@ -22,6 +22,7 @@ const els = {
   date: document.getElementById('date'),
   start: document.getElementById('start'),
   finish: document.getElementById('finish'),
+  usageTime: document.getElementById('usageTime'),
   usage: document.getElementById('usage'),
   remark: document.getElementById('remark'),
   pass: document.getElementById('pass'),
@@ -30,8 +31,8 @@ const els = {
 init();
 
 function init() {
-  els.dataMode.textContent = API_URL ? 'Google Apps Script / Google Sheets' : 'localStorage only';
-  els.status.textContent = API_URL ? 'Shared mode' : 'Local test mode';
+  els.dataMode.textContent = API_URL ? 'Google Apps Script / Google Sheets' : 'このブラウザ内のみ';
+  els.status.textContent = API_URL ? '共有モード' : 'ローカル確認モード';
   renderEquipmentControls();
   bindEvents();
   setDefaultFormValues();
@@ -45,6 +46,8 @@ function bindEvents() {
   document.getElementById('reloadBtn').addEventListener('click', loadReservations);
   els.form.addEventListener('submit', handleSubmit);
   els.equipment.addEventListener('change', () => { state.equipment = els.equipment.value; renderAll(); });
+  els.start.addEventListener('change', () => updateUsageTimeField(false));
+  els.finish.addEventListener('change', () => updateUsageTimeField(false));
 }
 
 function renderEquipmentControls() {
@@ -77,21 +80,22 @@ function setDefaultFormValues() {
   els.start.value = '09:00';
   els.finish.value = '10:00';
   els.equipment.value = state.equipment;
+  updateUsageTimeField(true);
 }
 
 async function loadReservations() {
-  setStatus('Loading...', false);
+  setStatus('読み込み中...', false);
   try {
     const result = API_URL
       ? await apiCall({ action: 'list' })
       : { ok: true, reservations: readLocalReservations() };
-    if (!result.ok) throw new Error(result.error || 'Failed to load reservations.');
+    if (!result.ok) throw new Error(result.error || '予約の読み込みに失敗しました。');
     state.reservations = normalizeReservations(result.reservations || []);
     renderAll();
-    setStatus('Loaded', true);
+    setStatus('読み込み完了', true);
   } catch (error) {
     setMessage(error.message, true);
-    setStatus('Load error', false);
+    setStatus('読み込みエラー', false);
   }
 }
 
@@ -104,25 +108,26 @@ async function handleSubmit(event) {
     return;
   }
   try {
-    setStatus('Saving...', false);
+    setStatus('保存中...', false);
     let result;
     if (API_URL) {
       result = await apiCall(payload);
     } else {
       result = localAction(payload);
     }
-    if (!result.ok) throw new Error(result.error || 'Failed to save.');
-    setMessage(result.message || 'Saved.', false);
+    if (!result.ok) throw new Error(result.error || '保存に失敗しました。');
+    setMessage(result.message || '保存しました。', false);
     els.form.reset();
     setDefaultFormValues();
     await loadReservations();
   } catch (error) {
     setMessage(error.message, true);
-    setStatus('Save error', false);
+    setStatus('保存エラー', false);
   }
 }
 
 function getFormPayload() {
+  const autoDuration = durationText(els.start.value, els.finish.value);
   return {
     action: els.mode.value,
     id: els.id.value.trim(),
@@ -131,6 +136,7 @@ function getFormPayload() {
     date: els.date.value,
     start: els.start.value,
     finish: els.finish.value,
+    usageTime: els.usageTime.value.trim() || autoDuration,
     usage: els.usage.value.trim(),
     remark: els.remark.value.trim(),
     pass: els.pass.value,
@@ -138,10 +144,10 @@ function getFormPayload() {
 }
 
 function validatePayload(p) {
-  if (!p.action) return 'Modeを選んでください。';
-  if ((p.action === 'edit' || p.action === 'delete') && !p.id) return 'Edit/DeleteにはReservation IDが必要です。一覧から予約をクリックしてください。';
+  if (!p.action) return '操作を選んでください。';
+  if ((p.action === 'edit' || p.action === 'delete') && !p.id) return '予約変更・予約削除には予約IDが必要です。一覧から予約をクリックしてください。';
   if (!p.equipment || !p.name || !p.date || !p.start || !p.finish || !p.usage || !p.pass) return '必須項目を入力してください。';
-  if (p.start >= p.finish) return 'FinishはStartより後にしてください。';
+  if (p.start >= p.finish) return '終了時刻は開始時刻より後にしてください。';
   return '';
 }
 
@@ -158,7 +164,7 @@ function renderCalendar() {
   const cells = dates.map(d => {
     const date = formatDate(d);
     const items = filteredReservations().filter(r => r.date === date).sort(sortByTime);
-    if (!items.length) return '<td><div class="day-empty">No reservation</div></td>';
+    if (!items.length) return '<td><div class="day-empty">予約なし</div></td>';
     return '<td>' + items.map(eventHtml).join('') + '</td>';
   }).join('');
   els.calendarBody.innerHTML = `<tr>${cells}</tr>`;
@@ -174,18 +180,19 @@ function renderList() {
   els.list.innerHTML = items.map(r => `
     <article class="card" data-id="${escapeHtml(r.id)}">
       <div class="card-title"><span>${escapeHtml(r.date)} ${escapeHtml(r.start)}-${escapeHtml(r.finish)}</span><span>${escapeHtml(r.name)}</span></div>
-      <div class="card-meta">${escapeHtml(r.equipment)} / ${escapeHtml(r.usage)}</div>
+      <div class="card-meta">${escapeHtml(r.equipment)} / 使用時間：${escapeHtml(displayUsageTime(r))}</div>
+      <div class="card-meta">使用目的：${escapeHtml(r.usage)}</div>
       ${r.remark ? `<div>${escapeHtml(r.remark)}</div>` : ''}
-      <div class="card-meta">ID: ${escapeHtml(r.id)}</div>
+      <div class="card-meta">予約ID: ${escapeHtml(r.id)}</div>
     </article>`).join('');
   els.list.querySelectorAll('[data-id]').forEach(card => card.addEventListener('click', () => fillForm(card.dataset.id)));
 }
 
 function eventHtml(r) {
   return `<button type="button" class="event" data-id="${escapeHtml(r.id)}">
-    <strong>${escapeHtml(r.start)}-${escapeHtml(r.finish)}</strong>
+    <strong>${escapeHtml(r.start)}-${escapeHtml(r.finish)}（${escapeHtml(displayUsageTime(r))}）</strong>
     <span>${escapeHtml(r.name)} / ${escapeHtml(r.usage)}</span><br>
-    <small>ID: ${escapeHtml(r.id)}</small>
+    <small>予約ID: ${escapeHtml(r.id)}</small>
   </button>`;
 }
 
@@ -200,10 +207,12 @@ function fillForm(id) {
   els.date.value = r.date;
   els.start.value = r.start;
   els.finish.value = r.finish;
+  els.usageTime.value = r.usageTime || durationText(r.start, r.finish);
+  els.usageTime.dataset.autoValue = durationText(r.start, r.finish);
   els.usage.value = r.usage;
   els.remark.value = r.remark || '';
   els.pass.value = '';
-  setMessage('選択した予約をフォームに読み込みました。編集または削除できます。', false);
+  setMessage('選択した予約をフォームに読み込みました。予約変更または予約削除ができます。', false);
   renderAll();
 }
 
@@ -222,7 +231,7 @@ function apiCall(params) {
     const script = document.createElement('script');
     const timeout = setTimeout(() => {
       cleanup();
-      reject(new Error('API response timeout. Google Apps Script URLを確認してください。'));
+      reject(new Error('API応答がタイムアウトしました。Google Apps ScriptのURLを確認してください。'));
     }, 15000);
     function cleanup() {
       clearTimeout(timeout);
@@ -235,7 +244,7 @@ function apiCall(params) {
     };
     script.onerror = () => {
       cleanup();
-      reject(new Error('API request failed.'));
+      reject(new Error('APIへの接続に失敗しました。'));
     };
     script.src = url.toString();
     document.body.appendChild(script);
@@ -253,7 +262,7 @@ function localAction(p) {
   }
   const idx = reservations.findIndex(r => r.id === p.id);
   if (idx < 0) return { ok: false, error: '対象予約が見つかりません。' };
-  if (reservations[idx].passHash !== p.pass) return { ok: false, error: 'Passが違います。' };
+  if (reservations[idx].passHash !== p.pass) return { ok: false, error: 'パスワードが違います。' };
   if (p.action === 'delete') {
     reservations.splice(idx, 1);
     writeLocalReservations(reservations);
@@ -280,9 +289,11 @@ function normalizeReservations(items) {
     date: String(r.date || ''),
     start: String(r.start || ''),
     finish: String(r.finish || ''),
+    usageTime: String(r.usageTime || ''),
     usage: String(r.usage || ''),
     remark: String(r.remark || ''),
-  })).filter(r => r.id && r.equipment && r.date && r.start && r.finish);
+  })).map(r => ({ ...r, usageTime: r.usageTime || durationText(r.start, r.finish) }))
+     .filter(r => r.id && r.equipment && r.date && r.start && r.finish);
 }
 function isOverlap(a, b) {
   return a.equipment === b.equipment && a.date === b.date && b.start < a.finish && b.finish > a.start;
@@ -292,8 +303,33 @@ function moveWeek(days) { state.weekStart = addDays(state.weekStart, days); rend
 function startOfWeek(date) { const d = new Date(date); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day); d.setHours(0,0,0,0); return d; }
 function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate() + days); return d; }
 function formatDate(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
-function weekday(date) { return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getDay()]; }
+function weekday(date) { return ['日','月','火','水','木','金','土'][date.getDay()]; }
 function makeId() { return 'R' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase(); }
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
-function setMessage(text, isError) { els.message.textContent = 'Message: ' + text; els.message.className = 'message ' + (isError ? 'error' : 'ok'); }
+function setMessage(text, isError) { els.message.textContent = 'メッセージ：' + text; els.message.className = 'message ' + (isError ? 'error' : 'ok'); }
 function setStatus(text, ok) { els.status.textContent = text; els.status.style.borderColor = ok ? 'rgba(155,231,194,0.8)' : 'rgba(255,255,255,0.3)'; }
+function displayUsageTime(r) { return r.usageTime || durationText(r.start, r.finish) || '-'; }
+function durationText(start, finish) {
+  const s = timeToMinutes(start);
+  const f = timeToMinutes(finish);
+  if (s === null || f === null || f <= s) return '';
+  const diff = f - s;
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  if (h && m) return `${h}時間${m}分`;
+  if (h) return `${h}時間`;
+  return `${m}分`;
+}
+function timeToMinutes(value) {
+  if (!/^\d{2}:\d{2}$/.test(value || '')) return null;
+  const [h, m] = value.split(':').map(Number);
+  return h * 60 + m;
+}
+function updateUsageTimeField(force) {
+  const currentAuto = els.usageTime.dataset.autoValue || '';
+  const nextAuto = durationText(els.start.value, els.finish.value);
+  if (force || !els.usageTime.value || els.usageTime.value === currentAuto) {
+    els.usageTime.value = nextAuto;
+  }
+  els.usageTime.dataset.autoValue = nextAuto;
+}

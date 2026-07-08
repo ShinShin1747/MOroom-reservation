@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Equipment Reservation</title>
+  <title>装置予約システム</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="site-header">
     <div>
-      <p class="eyebrow">Welcome</p>
-      <h1>Equipment Reservation</h1>
-      <p class="subtitle">GitHub Pages + JavaScript reservation system</p>
+      <p class="eyebrow">研究室用</p>
+      <h1>装置予約システム</h1>
+      <p class="subtitle">GitHub Pagesで動く簡易予約サイト</p>
     </div>
-    <div class="status" id="status">Loading...</div>
+    <div class="status" id="status">読み込み中...</div>
   </header>
 
   <main class="layout">
@@ -36,81 +36,86 @@
     </section>
 
     <section class="panel form-panel">
-      <h2>Reservation Form</h2>
-      <p class="message" id="message">Message: please fill out this form.</p>
+      <h2>予約フォーム</h2>
+      <p class="message" id="message">メッセージ：予約内容を入力してください。</p>
       <form id="reservationForm">
         <label>
-          Mode*
+          操作*
           <select id="mode" name="mode" required>
-            <option value="new">New</option>
-            <option value="edit">Edit</option>
-            <option value="delete">Delete</option>
+            <option value="new">新規予約</option>
+            <option value="edit">予約変更</option>
+            <option value="delete">予約削除</option>
           </select>
         </label>
 
         <label>
-          Reservation ID
-          <input id="reservationId" name="id" placeholder="Edit/Delete時に自動入力" />
+          予約ID
+          <input id="reservationId" name="id" placeholder="予約一覧をクリックすると自動入力" />
         </label>
 
         <label>
-          Equipment*
+          装置*
           <select id="equipment" name="equipment" required></select>
         </label>
 
         <label>
-          Name*
+          名前*
           <input id="name" name="name" required autocomplete="name" />
         </label>
 
         <label>
-          Date*
+          日付*
           <input id="date" name="date" type="date" required />
         </label>
 
         <div class="row2">
           <label>
-            Start*
+            開始*
             <input id="start" name="start" type="time" required />
           </label>
           <label>
-            Finish*
+            終了*
             <input id="finish" name="finish" type="time" required />
           </label>
         </div>
 
         <label>
-          Usage*
-          <input id="usage" name="usage" required placeholder="例：annealing, PL, cleaning" />
+          使用時間
+          <input id="usageTime" name="usageTime" placeholder="開始・終了から自動入力。例：2時間、30分、終日" />
         </label>
 
         <label>
-          Remark
+          使用目的*
+          <input id="usage" name="usage" required placeholder="例：アニール、PL測定、洗浄" />
+        </label>
+
+        <label>
+          備考
           <textarea id="remark" name="remark" rows="3"></textarea>
         </label>
 
         <label>
-          Pass*
+          パスワード*
           <input id="pass" name="pass" type="password" required placeholder="編集・削除用" />
         </label>
 
-        <button type="submit" class="primary">Submit</button>
+        <button type="submit" class="primary">送信</button>
       </form>
     </section>
 
     <section class="panel list-panel">
       <div class="list-header">
-        <h2>Reservations</h2>
-        <button type="button" id="reloadBtn">Reload</button>
+        <h2>予約一覧</h2>
+        <button type="button" id="reloadBtn">再読み込み</button>
       </div>
-      <div class="hint">予約をクリックするとEdit/Delete用にフォームへ反映されます。</div>
+      <div class="hint">予約をクリックすると、予約変更・予約削除用にフォームへ反映されます。</div>
       <div id="reservationList" class="reservation-list"></div>
     </section>
   </main>
 
   <footer>
-    <span>Data mode: <strong id="dataMode">local</strong></span>
-    <span>For shared use, set Google Apps Script Web App URL in <code>config.js</code>.</span>
+    <span>データ保存方式：<strong id="dataMode">ローカル</strong></span>
+    <span>全員で共有する場合は、<code>config.js</code> にGoogle Apps ScriptのURLを設定してください。</span>
   </footer>
 
   <script src="config.js"></script>

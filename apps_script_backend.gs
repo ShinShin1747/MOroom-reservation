@@ -1,14 +1,14 @@
 // Google Apps Script backend for the GitHub Pages reservation site.
-// 1) Create a Google Spreadsheet.
-// 2) Extensions > Apps Script にこのコードを貼る。
+// 1) Googleスプレッドシートを作成する。
+// 2) 拡張機能 > Apps Script にこのコードを貼る。
 // 3) setup() を1回実行する。
-// 4) Deploy > New deployment > Web app
-//    Execute as: Me
-//    Who has access: Anyone
+// 4) デプロイ > 新しいデプロイ > ウェブアプリ
+//    次のユーザーとして実行: 自分
+//    アクセスできるユーザー: 全員
 // 5) 発行された Web App URL を config.js の API_URL に貼る。
 
 const SHEET_NAME = 'Reservations';
-const HEADERS = ['id', 'equipment', 'name', 'date', 'start', 'finish', 'usage', 'remark', 'passHash', 'createdAt', 'updatedAt'];
+const HEADERS = ['id', 'equipment', 'name', 'date', 'start', 'finish', 'usageTime', 'usage', 'remark', 'passHash', 'createdAt', 'updatedAt'];
 
 function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -30,7 +30,7 @@ function doGet(e) {
     else if (action === 'new') result = createReservation(p);
     else if (action === 'edit') result = editReservation(p);
     else if (action === 'delete') result = deleteReservation(p);
-    else result = { ok: false, error: 'Unknown action.' };
+    else result = { ok: false, error: '不明な操作です。' };
     return output_(result, p.callback);
   } catch (err) {
     return output_({ ok: false, error: String(err.message || err) }, (e.parameter || {}).callback);
@@ -59,6 +59,7 @@ function createReservation(p) {
     date: data.date,
     start: data.start,
     finish: data.finish,
+    usageTime: data.usageTime || durationText_(data.start, data.finish),
     usage: data.usage,
     remark: data.remark,
     passHash: hash_(data.pass),
@@ -77,7 +78,7 @@ function editReservation(p) {
   const rows = getRows_().map(rowToObject_);
   const idx = rows.findIndex(r => r.id === data.id);
   if (idx < 0) return { ok: false, error: '対象予約が見つかりません。' };
-  if (rows[idx].passHash !== hash_(data.pass)) return { ok: false, error: 'Passが違います。' };
+  if (rows[idx].passHash !== hash_(data.pass)) return { ok: false, error: 'パスワードが違います。' };
   if (rows.some((r, i) => i !== idx && overlaps_(r, data))) return { ok: false, error: '同じ装置・日付・時間帯で予約が重複しています。' };
   const updated = {
     ...rows[idx],
@@ -86,6 +87,7 @@ function editReservation(p) {
     date: data.date,
     start: data.start,
     finish: data.finish,
+    usageTime: data.usageTime || durationText_(data.start, data.finish),
     usage: data.usage,
     remark: data.remark,
     updatedAt: new Date().toISOString(),
@@ -97,12 +99,12 @@ function editReservation(p) {
 function deleteReservation(p) {
   const id = String(p.id || '').trim();
   const pass = String(p.pass || '');
-  if (!id || !pass) return { ok: false, error: 'IDとPassが必要です。' };
+  if (!id || !pass) return { ok: false, error: 'IDとパスワードが必要です。' };
   const sheet = getSheet_();
   const rows = getRows_().map(rowToObject_);
   const idx = rows.findIndex(r => r.id === id);
   if (idx < 0) return { ok: false, error: '対象予約が見つかりません。' };
-  if (rows[idx].passHash !== hash_(pass)) return { ok: false, error: 'Passが違います。' };
+  if (rows[idx].passHash !== hash_(pass)) return { ok: false, error: 'パスワードが違います。' };
   sheet.deleteRow(idx + 2);
   return { ok: true, message: '予約を削除しました。' };
 }
@@ -115,6 +117,7 @@ function normalize_(p) {
     date: String(p.date || '').trim(),
     start: String(p.start || '').trim(),
     finish: String(p.finish || '').trim(),
+    usageTime: String(p.usageTime || '').trim(),
     usage: String(p.usage || '').trim(),
     remark: String(p.remark || '').trim(),
     pass: String(p.pass || ''),
@@ -124,8 +127,8 @@ function normalize_(p) {
 function validate_(d, needsId) {
   if (needsId && !d.id) return 'IDが必要です。';
   if (!d.equipment || !d.name || !d.date || !d.start || !d.finish || !d.usage || !d.pass) return '必須項目を入力してください。';
-  if (d.start >= d.finish) return 'FinishはStartより後にしてください。';
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date)) return 'Dateの形式が不正です。';
+  if (d.start >= d.finish) return '終了時刻は開始時刻より後にしてください。';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date)) return '日付の形式が不正です。';
   if (!/^\d{2}:\d{2}$/.test(d.start) || !/^\d{2}:\d{2}$/.test(d.finish)) return '時刻の形式が不正です。';
   return '';
 }
@@ -137,11 +140,25 @@ function overlaps_(a, b) {
 function getSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME);
-    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
-  }
+  if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+  ensureHeaders_(sheet);
   return sheet;
+}
+
+function ensureHeaders_(sheet) {
+  const lastCol = Math.max(sheet.getLastColumn(), 1);
+  const current = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(v => String(v || ''));
+  if (!current[0]) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+    sheet.setFrozenRows(1);
+    return;
+  }
+  // 旧版のシートでは finish の次が usage だったため、その間に usageTime 列を追加する。
+  if (current[0] === 'id' && current[5] === 'finish' && current[6] === 'usage') {
+    sheet.insertColumnAfter(6);
+  }
+  sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  sheet.setFrozenRows(1);
 }
 
 function getRows_() {
@@ -154,6 +171,7 @@ function getRows_() {
 function rowToObject_(row) {
   const obj = {};
   HEADERS.forEach((h, i) => obj[h] = String(row[i] || ''));
+  if (!obj.usageTime) obj.usageTime = durationText_(obj.start, obj.finish);
   return obj;
 }
 
@@ -164,6 +182,24 @@ function hash_(value) {
 
 function makeId_() {
   return 'R' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+}
+
+function durationText_(start, finish) {
+  const s = timeToMinutes_(start);
+  const f = timeToMinutes_(finish);
+  if (s === null || f === null || f <= s) return '';
+  const diff = f - s;
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  if (h && m) return h + '時間' + m + '分';
+  if (h) return h + '時間';
+  return m + '分';
+}
+
+function timeToMinutes_(value) {
+  if (!/^\d{2}:\d{2}$/.test(value || '')) return null;
+  const parts = value.split(':').map(Number);
+  return parts[0] * 60 + parts[1];
 }
 
 function output_(data, callback) {
