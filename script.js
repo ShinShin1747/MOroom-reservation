@@ -180,10 +180,12 @@ function renderList() {
   }
   els.list.innerHTML = items.map(r => `
     <article class="card" data-id="${escapeHtml(r.id)}">
-      <div class="card-title"><span>${escapeHtml(r.date)} ${escapeHtml(r.start)}-${escapeHtml(r.finish)}</span><span>${escapeHtml(r.name)}</span></div>
-      <div class="card-meta">${escapeHtml(r.equipment)} / 使用時間：${escapeHtml(displayUsageTime(r))}</div>
-      <div class="card-meta">使用目的：${escapeHtml(r.usage)}</div>
-      ${r.remark ? `<div>${escapeHtml(r.remark)}</div>` : ''}
+      <div class="card-title">${escapeHtml(r.date)} ${escapeHtml(r.start)}-${escapeHtml(r.finish)}</div>
+      <div class="card-line"><span class="label">名前</span><span>${escapeHtml(r.name)}</span></div>
+      <div class="card-line"><span class="label">装置</span><span>${escapeHtml(r.equipment)}</span></div>
+      <div class="card-line"><span class="label">使用時間</span><span>${escapeHtml(displayUsageTime(r))}</span></div>
+      <div class="card-line"><span class="label">使用目的</span><span>${escapeHtml(r.usage)}</span></div>
+      ${r.remark ? `<div class="card-line"><span class="label">備考</span><span>${escapeHtml(r.remark)}</span></div>` : ''}
       <div class="card-meta">予約ID: ${escapeHtml(r.id)}</div>
     </article>`).join('');
   els.list.querySelectorAll('[data-id]').forEach(card => card.addEventListener('click', () => fillForm(card.dataset.id)));
@@ -191,9 +193,12 @@ function renderList() {
 
 function eventHtml(r) {
   return `<button type="button" class="event" data-id="${escapeHtml(r.id)}">
-    <strong>${escapeHtml(r.start)}-${escapeHtml(r.finish)}（${escapeHtml(displayUsageTime(r))}）</strong>
-    <span>${escapeHtml(r.name)} / ${escapeHtml(r.usage)}</span><br>
-    <small>予約ID: ${escapeHtml(r.id)}</small>
+    <strong class="event-time">${escapeHtml(r.start)}-${escapeHtml(r.finish)}</strong>
+    <span class="event-line"><span class="event-label">名前</span><span class="event-value">${escapeHtml(r.name)}</span></span>
+    <span class="event-line"><span class="event-label">使用時間</span><span class="event-value">${escapeHtml(displayUsageTime(r))}</span></span>
+    <span class="event-line"><span class="event-label">使用目的</span><span class="event-value">${escapeHtml(r.usage)}</span></span>
+    ${r.remark ? `<span class="event-line"><span class="event-label">備考</span><span class="event-value">${escapeHtml(r.remark)}</span></span>` : ''}
+    <small class="event-id">予約ID: ${escapeHtml(r.id)}</small>
   </button>`;
 }
 
