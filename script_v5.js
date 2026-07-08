@@ -176,7 +176,10 @@ function validatePayload(p) {
   if (!ACTUAL_EQUIPMENT_LIST.includes(p.equipment)) return '登録されていない装置名です。メンテ情報タブは表示専用です。装置欄では実際の装置を選んでください。';
   if (!p.equipment || !p.name || !p.date || !p.start || !p.finish || !p.pass) return '必須項目を入力してください。パスワードも必要です。';
   if (p.start >= p.finish) return '終了時刻は開始時刻より後にしてください。';
-  if (p.maintenanceKind === 'maintenance' && !p.maintenanceTypes) return 'メンテを選択した場合は、原料交換・重故障・除害停止・定常メンテから1つ以上選択してください。';
+  if (p.action !== 'delete') {
+    if (p.maintenanceKind !== 'maintenance' && p.maintenanceKind !== 'epi') return 'メンテ情報は、メンテまたはエピのどちらかを必ず選択してください。';
+    if (p.maintenanceKind === 'maintenance' && !p.maintenanceTypes) return 'メンテを選択した場合は、原料交換・重故障・除害停止・定常メンテから1つ以上選択してください。';
+  }
   return '';
 }
 
@@ -211,7 +214,7 @@ function renderList() {
     return;
   }
   els.list.innerHTML = items.map(r => `
-    <article class="card${r.maintenanceTypes ? ' card-maintenance' : ''}" data-id="${escapeHtml(r.id)}">
+    <article class="card${reservationStatusClass(r, 'card')}" data-id="${escapeHtml(r.id)}">
       <div class="card-title">${escapeHtml(r.date)} ${escapeHtml(r.start)}-${escapeHtml(r.finish)}</div>
       <div class="card-line"><span class="label">装置</span><span>${escapeHtml(r.equipment)}</span></div>
       <div class="card-line"><span class="label">名前</span><span>${escapeHtml(r.name)}</span></div>
@@ -225,7 +228,7 @@ function renderList() {
 
 function eventHtml(r) {
   const maintenanceView = isMaintenanceView();
-  return `<button type="button" class="event${r.maintenanceTypes ? ' event-maintenance' : ''}" data-id="${escapeHtml(r.id)}">
+  return `<button type="button" class="event${reservationStatusClass(r, 'event')}" data-id="${escapeHtml(r.id)}">
     <strong class="event-time">${escapeHtml(r.start)}-${escapeHtml(r.finish)}</strong>
     ${maintenanceView ? `<span class="event-value event-equipment">${eventText(r.equipment)}</span>` : ''}
     <span class="event-value">${eventText(r.name)}</span>
@@ -357,7 +360,7 @@ function setStatus(text, ok) { els.status.textContent = text; els.status.style.b
 
 function getMaintenanceKind() {
   const selected = els.maintenanceKind.find(input => input.checked);
-  return selected ? selected.value : 'none';
+  return selected ? selected.value : '';
 }
 
 function getSelectedMaintenanceTypes() {
@@ -377,7 +380,7 @@ function setMaintenanceTypes(value) {
   const hasEpi = values.includes(MAINTENANCE_EPI_TYPE);
   const details = values.filter(v => v !== MAINTENANCE_EPI_TYPE);
 
-  setMaintenanceKind(hasEpi ? 'epi' : (details.length ? 'maintenance' : 'none'));
+  setMaintenanceKind(hasEpi ? 'epi' : (details.length ? 'maintenance' : ''));
   els.maintenanceDetails.forEach(input => {
     input.checked = details.includes(canonicalMaintenanceType(input.value));
   });
@@ -410,7 +413,17 @@ function normalizeMaintenanceTypes(value) {
 }
 
 function maintenanceTagsHtml(value) {
-  return normalizeMaintenanceTypes(value).split('、').filter(Boolean).map(v => `<span class="maintenance-tag">${escapeHtml(v)}</span>`).join('');
+  return normalizeMaintenanceTypes(value).split('、').filter(Boolean).map(v => {
+    const cls = v === MAINTENANCE_EPI_TYPE ? ' maintenance-tag-epi' : '';
+    return `<span class="maintenance-tag${cls}">${escapeHtml(v)}</span>`;
+  }).join('');
+}
+
+function reservationStatusClass(r, prefix) {
+  const types = normalizeMaintenanceTypes(r.maintenanceTypes || '').split('、').filter(Boolean);
+  if (!types.length) return '';
+  if (types.includes(MAINTENANCE_EPI_TYPE)) return ` ${prefix}-epi`;
+  return ` ${prefix}-maintenance`;
 }
 
 function canonicalMaintenanceType(value) {

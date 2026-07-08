@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>装置予約システム</title>
-  <link rel="stylesheet" href="style_v5.css?v=20260708-maintenance-v8" />
+  <link rel="stylesheet" href="style_v5.css?v=20260708-maintenance-v9" />
 </head>
 <body>
   <header class="site-header">
@@ -86,15 +86,11 @@
             <div class="field-title">分類</div>
             <div class="maintenance-kind-grid">
               <label class="check-option">
-                <input type="radio" name="maintenanceKind" value="none" checked />
-                <span>なし</span>
-              </label>
-              <label class="check-option">
-                <input type="radio" name="maintenanceKind" value="maintenance" />
+                <input type="radio" name="maintenanceKind" value="maintenance" required />
                 <span>メンテ</span>
               </label>
               <label class="check-option">
-                <input type="radio" name="maintenanceKind" value="epi" />
+                <input type="radio" name="maintenanceKind" value="epi" required />
                 <span>エピ</span>
               </label>
             </div>
@@ -122,7 +118,7 @@
             </div>
           </div>
 
-          <small class="field-note">通常予約は「なし」のままでOKです。メンテを選んだ場合だけ、下の4項目から1つ以上選択してください。メンテ情報タブには、ここで登録された内容だけが装置別にまとめて表示されます。</small>
+          <small class="field-note">予約時は必ず「メンテ」または「エピ」を選択してください。メンテを選んだ場合は、下の4項目から1つ以上選択してください。メンテ情報タブには、ここで登録された内容が装置別にまとめて表示されます。</small>
         </fieldset>
 
         <label>
@@ -160,7 +156,7 @@
     <span>全員で共有する場合は、<code>config.js</code> にGoogle Apps ScriptのURLを設定してください。</span>
   </footer>
 
-  <script src="config.js?v=20260708-maintenance-v8"></script>
-  <script src="script_v5.js?v=20260708-maintenance-v8"></script>
+  <script src="config.js?v=20260708-maintenance-v9"></script>
+  <script src="script_v5.js?v=20260708-maintenance-v9"></script>
 </body>
 </html>

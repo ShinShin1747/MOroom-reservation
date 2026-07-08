@@ -135,6 +135,7 @@ function validate_(d, needsId) {
   if (ALLOWED_EQUIPMENTS.indexOf(d.equipment) === -1) return '登録されていない装置名です。メンテ情報タブは表示専用です。装置欄では実際の装置を選んでください。';
   if (!d.equipment || !d.name || !d.date || !d.start || !d.finish || !d.pass) return '必須項目を入力してください。パスワードも必要です。';
   if (d.start >= d.finish) return '終了時刻は開始時刻より後にしてください。';
+  if (!d.maintenanceTypes) return 'メンテ情報は、メンテまたはエピのどちらかを必ず選択してください。メンテの場合は原料交換・重故障・除害停止・定常メンテから1つ以上選択してください。';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date)) return '日付の形式が不正です。';
   if (!/^\d{2}:\d{2}$/.test(d.start) || !/^\d{2}:\d{2}$/.test(d.finish)) return '時刻の形式が不正です。';
   return '';

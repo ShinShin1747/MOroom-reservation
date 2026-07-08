@@ -240,7 +240,7 @@ code { background: #eef2f6; padding: 2px 5px; border-radius: 5px; }
   gap: 8px;
 }
 .maintenance-kind-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .check-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -315,6 +315,10 @@ code { background: #eef2f6; padding: 2px 5px; border-radius: 5px; }
   border-color: #f4b740;
   background: #fff7e0;
 }
+.event-epi {
+  border-color: #8b5cf6;
+  background: #f3e8ff;
+}
 .maintenance-tab.active {
   border-color: #b45309;
   background: #fff7e0;
@@ -339,6 +343,11 @@ code { background: #eef2f6; padding: 2px 5px; border-radius: 5px; }
   font-weight: 800;
   line-height: 1.2;
 }
+.maintenance-tag-epi {
+  background: #ede9fe;
+  color: #5b21b6;
+  border-color: #c4b5fd;
+}
 .event-remark {
   color: var(--muted);
 }
@@ -349,6 +358,10 @@ code { background: #eef2f6; padding: 2px 5px; border-radius: 5px; }
 .card-maintenance {
   border-color: #fcd34d;
   background: #fffbeb;
+}
+.card-epi {
+  border-color: #c4b5fd;
+  background: #faf5ff;
 }
 
 @media (max-width: 640px) {
