@@ -1,15 +1,17 @@
 // Google Apps Script backend for the GitHub Pages reservation site.
 // 1) Googleスプレッドシートを作成する。
 // 2) 拡張機能 > Apps Script にこのコードを貼る。
-// 3) setup() を1回実行する。
+// 3) 初回だけ setup() を1回実行する。
+//    既に予約データが入っている場合は setup() を実行しないでください。データが消えます。
 // 4) デプロイ > 新しいデプロイ > ウェブアプリ
 //    次のユーザーとして実行: 自分
 //    アクセスできるユーザー: 全員
 // 5) 発行された Web App URL を config.js の API_URL に貼る。
 
 const SHEET_NAME = 'Reservations';
-const HEADERS = ['id', 'equipment', 'name', 'date', 'start', 'finish', 'usageTime', 'usage', 'remark', 'passHash', 'createdAt', 'updatedAt'];
-const ALLOWED_EQUIPMENTS = ['MOVPE 豊田中研', 'MOVPE #4', 'MOVPE #5', 'MOVPE #7', 'MOVPE #11', 'MOVPE #12'];
+const HEADERS = ['id', 'equipment', 'name', 'date', 'start', 'finish', 'usageTime', 'usage', 'remark', 'passHash', 'createdAt', 'updatedAt', 'maintenanceTypes'];
+const ALLOWED_EQUIPMENTS = ['MOVPE 豊田中研', 'MOVPE #4', 'MOVPE #5', 'MOVPE #7', 'MOVPE #11', 'MOVPE #12', '全体のメンテ'];
+const ALLOWED_MAINTENANCE_TYPES = ['除害停止メンテ', '重故障メンテ', 'エピ'];
 
 function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -66,6 +68,7 @@ function createReservation(p) {
     passHash: hash_(data.pass),
     createdAt: now,
     updatedAt: now,
+    maintenanceTypes: data.maintenanceTypes,
   };
   getSheet_().appendRow(HEADERS.map(h => record[h] || ''));
   return { ok: true, message: '予約を作成しました。', id: record.id };
@@ -91,6 +94,7 @@ function editReservation(p) {
     usageTime: data.usageTime || durationText_(data.start, data.finish),
     usage: data.usage,
     remark: data.remark,
+    maintenanceTypes: data.maintenanceTypes,
     updatedAt: new Date().toISOString(),
   };
   sheet.getRange(idx + 2, 1, 1, HEADERS.length).setValues([HEADERS.map(h => updated[h] || '')]);
@@ -121,6 +125,7 @@ function normalize_(p) {
     usageTime: String(p.usageTime || '').trim(),
     usage: String(p.usage || '').trim(),
     remark: String(p.remark || '').trim(),
+    maintenanceTypes: normalizeMaintenanceTypes_(p.maintenanceTypes || ''),
     pass: String(p.pass || ''),
   };
 }
@@ -128,7 +133,7 @@ function normalize_(p) {
 function validate_(d, needsId) {
   if (needsId && !d.id) return 'IDが必要です。';
   if (ALLOWED_EQUIPMENTS.indexOf(d.equipment) === -1) return '登録されていない装置名です。';
-  if (!d.equipment || !d.name || !d.date || !d.start || !d.finish || !d.usage || !d.pass) return '必須項目を入力してください。パスワードも必要です。';
+  if (!d.equipment || !d.name || !d.date || !d.start || !d.finish || !d.pass) return '必須項目を入力してください。パスワードも必要です。';
   if (d.start >= d.finish) return '終了時刻は開始時刻より後にしてください。';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date)) return '日付の形式が不正です。';
   if (!/^\d{2}:\d{2}$/.test(d.start) || !/^\d{2}:\d{2}$/.test(d.finish)) return '時刻の形式が不正です。';
@@ -149,7 +154,7 @@ function getSheet_() {
 
 function ensureHeaders_(sheet) {
   const lastCol = Math.max(sheet.getLastColumn(), 1);
-  const current = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(v => String(v || ''));
+  let current = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(v => String(v || ''));
   if (!current[0]) {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sheet.setFrozenRows(1);
@@ -158,6 +163,7 @@ function ensureHeaders_(sheet) {
   // 旧版のシートでは finish の次が usage だったため、その間に usageTime 列を追加する。
   if (current[0] === 'id' && current[5] === 'finish' && current[6] === 'usage') {
     sheet.insertColumnAfter(6);
+    current = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(v => String(v || ''));
   }
   sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
   sheet.setFrozenRows(1);
@@ -174,7 +180,23 @@ function rowToObject_(row) {
   const obj = {};
   HEADERS.forEach((h, i) => obj[h] = String(row[i] || ''));
   if (!obj.usageTime) obj.usageTime = durationText_(obj.start, obj.finish);
+  obj.maintenanceTypes = normalizeMaintenanceTypes_(obj.maintenanceTypes || '');
   return obj;
+}
+
+function normalizeMaintenanceTypes_(value) {
+  const allowed = ALLOWED_MAINTENANCE_TYPES;
+  const seen = {};
+  return String(value || '')
+    .split(/[、,，]/)
+    .map(v => v.trim())
+    .filter(v => allowed.indexOf(v) !== -1)
+    .filter(v => {
+      if (seen[v]) return false;
+      seen[v] = true;
+      return true;
+    })
+    .join('、');
 }
 
 function hash_(value) {
