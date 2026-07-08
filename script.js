@@ -146,7 +146,8 @@ function getFormPayload() {
 function validatePayload(p) {
   if (!p.action) return '操作を選んでください。';
   if ((p.action === 'edit' || p.action === 'delete') && !p.id) return '予約変更・予約削除には予約IDが必要です。一覧から予約をクリックしてください。';
-  if (!p.equipment || !p.name || !p.date || !p.start || !p.finish || !p.usage || !p.pass) return '必須項目を入力してください。';
+  if (!EQUIPMENTS.includes(p.equipment)) return '登録されていない装置名です。';
+  if (!p.equipment || !p.name || !p.date || !p.start || !p.finish || !p.usage || !p.pass) return '必須項目を入力してください。パスワードも必要です。';
   if (p.start >= p.finish) return '終了時刻は開始時刻より後にしてください。';
   return '';
 }

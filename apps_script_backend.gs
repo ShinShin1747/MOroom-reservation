@@ -9,6 +9,7 @@
 
 const SHEET_NAME = 'Reservations';
 const HEADERS = ['id', 'equipment', 'name', 'date', 'start', 'finish', 'usageTime', 'usage', 'remark', 'passHash', 'createdAt', 'updatedAt'];
+const ALLOWED_EQUIPMENTS = ['MOVPE 豊田中研', 'MOVPE #4', 'MOVPE #5', 'MOVPE #7', 'MOVPE #11', 'MOVPE #12'];
 
 function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -126,7 +127,8 @@ function normalize_(p) {
 
 function validate_(d, needsId) {
   if (needsId && !d.id) return 'IDが必要です。';
-  if (!d.equipment || !d.name || !d.date || !d.start || !d.finish || !d.usage || !d.pass) return '必須項目を入力してください。';
+  if (ALLOWED_EQUIPMENTS.indexOf(d.equipment) === -1) return '登録されていない装置名です。';
+  if (!d.equipment || !d.name || !d.date || !d.start || !d.finish || !d.usage || !d.pass) return '必須項目を入力してください。パスワードも必要です。';
   if (d.start >= d.finish) return '終了時刻は開始時刻より後にしてください。';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date)) return '日付の形式が不正です。';
   if (!/^\d{2}:\d{2}$/.test(d.start) || !/^\d{2}:\d{2}$/.test(d.finish)) return '時刻の形式が不正です。';

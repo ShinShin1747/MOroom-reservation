@@ -3,15 +3,12 @@
 // 空欄のままだと、各PCのブラウザ内だけに保存されます。全員共有にはなりません。
 const API_URL = "";
 
-// 装置名はここを編集してください。
+// 使用する装置名。ここに書いた装置だけが予約画面に表示されます。
 const EQUIPMENTS = [
-  "MOVPE",
-  "ICP-RIE",
-  "RTA",
-  "Sputter",
-  "PECVD",
-  "Polisher",
-  "PL",
-  "SEM",
-  "Hall"
+  "MOVPE 豊田中研",
+  "MOVPE #4",
+  "MOVPE #5",
+  "MOVPE #7",
+  "MOVPE #11",
+  "MOVPE #12"
 ];

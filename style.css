@@ -165,3 +165,5 @@ code { background: #eef2f6; padding: 2px 5px; border-radius: 5px; }
   .site-header { flex-direction: column; }
   .status { text-align: left; }
 }
+
+.field-note { display: block; margin-top: 6px; color: #64748b; font-size: 0.85rem; line-height: 1.4; }
