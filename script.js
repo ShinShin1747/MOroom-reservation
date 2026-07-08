@@ -1,13 +1,5 @@
-const MAINTENANCE_TAB_NAME = '全体のメンテ';
-const DEFAULT_MAINTENANCE_TYPES = ['除害停止メンテ', '重故障メンテ', 'エピ'];
-const CONFIG_EQUIPMENTS = (typeof EQUIPMENTS !== 'undefined' && Array.isArray(EQUIPMENTS)) ? EQUIPMENTS : [];
-const EQUIPMENT_LIST = Array.from(new Set([...CONFIG_EQUIPMENTS, MAINTENANCE_TAB_NAME]));
-const MAINTENANCE_TYPE_LIST = (typeof MAINTENANCE_TYPES !== 'undefined' && Array.isArray(MAINTENANCE_TYPES) && MAINTENANCE_TYPES.length)
-  ? MAINTENANCE_TYPES
-  : DEFAULT_MAINTENANCE_TYPES;
-
 const state = {
-  equipment: EQUIPMENT_LIST[0],
+  equipment: EQUIPMENTS[0],
   weekStart: startOfWeek(new Date()),
   reservations: [],
   jsonpSeq: 0,
@@ -33,7 +25,6 @@ const els = {
   usage: document.getElementById('usage'),
   remark: document.getElementById('remark'),
   pass: document.getElementById('pass'),
-  maintenanceTypes: Array.from(document.querySelectorAll('input[name="maintenanceTypes"]')),
 };
 
 init();
@@ -59,12 +50,11 @@ function bindEvents() {
 function renderEquipmentControls() {
   els.tabs.innerHTML = '';
   els.equipment.innerHTML = '';
-  for (const eq of EQUIPMENT_LIST) {
+  for (const eq of EQUIPMENTS) {
     const tab = document.createElement('button');
     tab.type = 'button';
     tab.textContent = eq;
     tab.className = eq === state.equipment ? 'active' : '';
-    if (eq === MAINTENANCE_TAB_NAME) tab.classList.add('maintenance-tab');
     tab.addEventListener('click', () => {
       state.equipment = eq;
       els.equipment.value = eq;
@@ -83,12 +73,10 @@ function renderEquipmentControls() {
 
 function setDefaultFormValues() {
   const today = formatDate(new Date());
-  els.mode.value = 'new';
   els.date.value = today;
   els.start.value = '09:00';
   els.finish.value = '10:00';
   els.equipment.value = state.equipment;
-  setMaintenanceTypes('');
 }
 
 async function loadReservations() {
@@ -143,7 +131,6 @@ function getFormPayload() {
     date: els.date.value,
     start: els.start.value,
     finish: els.finish.value,
-    maintenanceTypes: getSelectedMaintenanceTypes(),
     usage: els.usage.value.trim(),
     remark: els.remark.value.trim(),
     pass: els.pass.value,
@@ -153,8 +140,8 @@ function getFormPayload() {
 function validatePayload(p) {
   if (!p.action) return '操作を選んでください。';
   if ((p.action === 'edit' || p.action === 'delete') && !p.id) return '予約変更・予約削除には予約IDが必要です。一覧から予約をクリックしてください。';
-  if (!EQUIPMENT_LIST.includes(p.equipment)) return '登録されていない装置名です。';
-  if (!p.equipment || !p.name || !p.date || !p.start || !p.finish || !p.pass) return '必須項目を入力してください。パスワードも必要です。';
+  if (!EQUIPMENTS.includes(p.equipment)) return '登録されていない装置名です。';
+  if (!p.equipment || !p.name || !p.date || !p.start || !p.finish || !p.usage || !p.pass) return '必須項目を入力してください。パスワードも必要です。';
   if (p.start >= p.finish) return '終了時刻は開始時刻より後にしてください。';
   return '';
 }
@@ -190,8 +177,7 @@ function renderList() {
       <div class="card-title">${escapeHtml(r.date)} ${escapeHtml(r.start)}-${escapeHtml(r.finish)}</div>
       <div class="card-line"><span class="label">名前</span><span>${escapeHtml(r.name)}</span></div>
       <div class="card-line"><span class="label">装置</span><span>${escapeHtml(r.equipment)}</span></div>
-      ${r.maintenanceTypes ? `<div class="card-line"><span class="label">メンテ</span><span class="maintenance-tags">${maintenanceTagsHtml(r.maintenanceTypes)}</span></div>` : ''}
-      ${r.usage ? `<div class="card-line"><span class="label">使用目的</span><span>${escapeHtml(r.usage)}</span></div>` : ''}
+      <div class="card-line"><span class="label">使用目的</span><span>${escapeHtml(r.usage)}</span></div>
       ${r.remark ? `<div class="card-line"><span class="label">備考</span><span>${escapeHtml(r.remark)}</span></div>` : ''}
       <div class="card-meta">予約ID: ${escapeHtml(r.id)}</div>
     </article>`).join('');
@@ -199,12 +185,11 @@ function renderList() {
 }
 
 function eventHtml(r) {
-  return `<button type="button" class="event${r.maintenanceTypes ? ' event-maintenance' : ''}" data-id="${escapeHtml(r.id)}">
+  return `<button type="button" class="event" data-id="${escapeHtml(r.id)}">
     <strong class="event-time">${escapeHtml(r.start)}-${escapeHtml(r.finish)}</strong>
-    <span class="event-value">${eventText(r.name)}</span>
-    ${r.maintenanceTypes ? `<span class="event-badges">${maintenanceTagsHtml(r.maintenanceTypes)}</span>` : ''}
-    ${r.usage ? `<span class="event-value">${eventText(r.usage)}</span>` : ''}
-    ${r.remark ? `<span class="event-value event-remark">${eventText(r.remark)}</span>` : ''}
+    <span class="event-line"><span class="event-label">名前</span><span class="event-value">${escapeHtml(r.name)}</span></span>
+    <span class="event-line"><span class="event-label">使用目的</span><span class="event-value">${escapeHtml(r.usage)}</span></span>
+    ${r.remark ? `<span class="event-line"><span class="event-label">備考</span><span class="event-value">${escapeHtml(r.remark)}</span></span>` : ''}
     <small class="event-id">予約ID: ${escapeHtml(r.id)}</small>
   </button>`;
 }
@@ -220,9 +205,8 @@ function fillForm(id) {
   els.date.value = r.date;
   els.start.value = r.start;
   els.finish.value = r.finish;
-  els.usage.value = r.usage || '';
+  els.usage.value = r.usage;
   els.remark.value = r.remark || '';
-  setMaintenanceTypes(r.maintenanceTypes || '');
   els.pass.value = '';
   setMessage('選択した予約をフォームに読み込みました。予約変更または予約削除ができます。', false);
   renderAll();
@@ -301,7 +285,6 @@ function normalizeReservations(items) {
     date: String(r.date || ''),
     start: String(r.start || ''),
     finish: String(r.finish || ''),
-    maintenanceTypes: normalizeMaintenanceTypes(r.maintenanceTypes || ''),
     usage: String(r.usage || ''),
     remark: String(r.remark || ''),
   })).filter(r => r.id && r.equipment && r.date && r.start && r.finish);
@@ -317,30 +300,5 @@ function formatDate(date) { return `${date.getFullYear()}-${String(date.getMonth
 function weekday(date) { return ['日','月','火','水','木','金','土'][date.getDay()]; }
 function makeId() { return 'R' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase(); }
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
-function eventText(value) { return escapeHtml(value).replace(/([、。，．,;；/／・])/g, '$1<br>'); }
 function setMessage(text, isError) { els.message.textContent = 'メッセージ：' + text; els.message.className = 'message ' + (isError ? 'error' : 'ok'); }
 function setStatus(text, ok) { els.status.textContent = text; els.status.style.borderColor = ok ? 'rgba(155,231,194,0.8)' : 'rgba(255,255,255,0.3)'; }
-
-function getSelectedMaintenanceTypes() {
-  return els.maintenanceTypes.filter(input => input.checked).map(input => input.value).join('、');
-}
-
-function setMaintenanceTypes(value) {
-  const selected = normalizeMaintenanceTypes(value).split('、').filter(Boolean);
-  els.maintenanceTypes.forEach(input => {
-    input.checked = selected.includes(input.value);
-  });
-}
-
-function normalizeMaintenanceTypes(value) {
-  const allowed = new Set(MAINTENANCE_TYPE_LIST);
-  const parts = String(value || '')
-    .split(/[、,，]/)
-    .map(v => v.trim())
-    .filter(v => allowed.has(v));
-  return Array.from(new Set(parts)).join('、');
-}
-
-function maintenanceTagsHtml(value) {
-  return normalizeMaintenanceTypes(value).split('、').filter(Boolean).map(v => `<span class="maintenance-tag">${escapeHtml(v)}</span>`).join('');
-}

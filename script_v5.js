@@ -1,13 +1,19 @@
-const MAINTENANCE_TAB_NAME = '全体のメンテ';
-const DEFAULT_MAINTENANCE_TYPES = ['除害停止メンテ', '重故障メンテ', 'エピ'];
-const CONFIG_EQUIPMENTS = (typeof EQUIPMENTS !== 'undefined' && Array.isArray(EQUIPMENTS)) ? EQUIPMENTS : [];
-const EQUIPMENT_LIST = Array.from(new Set([...CONFIG_EQUIPMENTS, MAINTENANCE_TAB_NAME]));
-const MAINTENANCE_TYPE_LIST = (typeof MAINTENANCE_TYPES !== 'undefined' && Array.isArray(MAINTENANCE_TYPES) && MAINTENANCE_TYPES.length)
-  ? MAINTENANCE_TYPES
-  : DEFAULT_MAINTENANCE_TYPES;
+const MAINTENANCE_TAB_NAME = 'メンテ情報';
+const LEGACY_MAINTENANCE_TAB_NAME = '全体のメンテ';
+const MAINTENANCE_EPI_TYPE = 'エピ';
+const DEFAULT_EQUIPMENTS = ['MOVPE 豊田中研', 'MOVPE #4', 'MOVPE #5', 'MOVPE #7', 'MOVPE #11', 'MOVPE #12'];
+const DEFAULT_MAINTENANCE_DETAIL_TYPES = ['原料交換', '重故障', '除害停止', '定常メンテ'];
+const CONFIG_EQUIPMENTS = (typeof EQUIPMENTS !== 'undefined' && Array.isArray(EQUIPMENTS)) ? EQUIPMENTS : DEFAULT_EQUIPMENTS;
+const ACTUAL_EQUIPMENT_LIST = Array.from(new Set(CONFIG_EQUIPMENTS.filter(isActualEquipment)));
+const VIEW_TAB_LIST = Array.from(new Set([...ACTUAL_EQUIPMENT_LIST, MAINTENANCE_TAB_NAME]));
+const MAINTENANCE_DETAIL_TYPE_LIST = (typeof MAINTENANCE_DETAIL_TYPES !== 'undefined' && Array.isArray(MAINTENANCE_DETAIL_TYPES) && MAINTENANCE_DETAIL_TYPES.length)
+  ? MAINTENANCE_DETAIL_TYPES.map(canonicalMaintenanceType).filter(Boolean)
+  : DEFAULT_MAINTENANCE_DETAIL_TYPES;
+const MAINTENANCE_VALUE_LIST = Array.from(new Set([MAINTENANCE_EPI_TYPE, ...MAINTENANCE_DETAIL_TYPE_LIST]));
 
 const state = {
-  equipment: EQUIPMENT_LIST[0],
+  equipment: ACTUAL_EQUIPMENT_LIST[0] || MAINTENANCE_TAB_NAME,
+  formEquipment: ACTUAL_EQUIPMENT_LIST[0] || '',
   weekStart: startOfWeek(new Date()),
   reservations: [],
   jsonpSeq: 0,
@@ -33,7 +39,9 @@ const els = {
   usage: document.getElementById('usage'),
   remark: document.getElementById('remark'),
   pass: document.getElementById('pass'),
-  maintenanceTypes: Array.from(document.querySelectorAll('input[name="maintenanceTypes"]')),
+  maintenanceKind: Array.from(document.querySelectorAll('input[name="maintenanceKind"]')),
+  maintenanceDetails: Array.from(document.querySelectorAll('input[name="maintenanceDetails"]')),
+  maintenanceDetailPanel: document.getElementById('maintenanceDetailPanel'),
 };
 
 init();
@@ -53,13 +61,19 @@ function bindEvents() {
   document.getElementById('nextWeek').addEventListener('click', () => moveWeek(7));
   document.getElementById('reloadBtn').addEventListener('click', loadReservations);
   els.form.addEventListener('submit', handleSubmit);
-  els.equipment.addEventListener('change', () => { state.equipment = els.equipment.value; renderAll(); });
+  els.equipment.addEventListener('change', () => {
+    state.formEquipment = els.equipment.value;
+    state.equipment = els.equipment.value;
+    renderAll();
+  });
+  els.maintenanceKind.forEach(input => input.addEventListener('change', updateMaintenanceDetailVisibility));
 }
 
 function renderEquipmentControls() {
   els.tabs.innerHTML = '';
   els.equipment.innerHTML = '';
-  for (const eq of EQUIPMENT_LIST) {
+
+  for (const eq of VIEW_TAB_LIST) {
     const tab = document.createElement('button');
     tab.type = 'button';
     tab.textContent = eq;
@@ -67,18 +81,22 @@ function renderEquipmentControls() {
     if (eq === MAINTENANCE_TAB_NAME) tab.classList.add('maintenance-tab');
     tab.addEventListener('click', () => {
       state.equipment = eq;
-      els.equipment.value = eq;
+      if (isActualEquipment(eq)) state.formEquipment = eq;
       renderEquipmentControls();
       renderAll();
     });
     els.tabs.appendChild(tab);
+  }
 
+  for (const eq of ACTUAL_EQUIPMENT_LIST) {
     const option = document.createElement('option');
     option.value = eq;
     option.textContent = eq;
     els.equipment.appendChild(option);
   }
-  els.equipment.value = state.equipment;
+
+  if (!ACTUAL_EQUIPMENT_LIST.includes(state.formEquipment)) state.formEquipment = ACTUAL_EQUIPMENT_LIST[0] || '';
+  els.equipment.value = state.formEquipment;
 }
 
 function setDefaultFormValues() {
@@ -87,7 +105,8 @@ function setDefaultFormValues() {
   els.date.value = today;
   els.start.value = '09:00';
   els.finish.value = '10:00';
-  els.equipment.value = state.equipment;
+  if (!ACTUAL_EQUIPMENT_LIST.includes(state.formEquipment)) state.formEquipment = ACTUAL_EQUIPMENT_LIST[0] || '';
+  els.equipment.value = state.formEquipment;
   setMaintenanceTypes('');
 }
 
@@ -143,6 +162,7 @@ function getFormPayload() {
     date: els.date.value,
     start: els.start.value,
     finish: els.finish.value,
+    maintenanceKind: getMaintenanceKind(),
     maintenanceTypes: getSelectedMaintenanceTypes(),
     usage: els.usage.value.trim(),
     remark: els.remark.value.trim(),
@@ -153,9 +173,10 @@ function getFormPayload() {
 function validatePayload(p) {
   if (!p.action) return '操作を選んでください。';
   if ((p.action === 'edit' || p.action === 'delete') && !p.id) return '予約変更・予約削除には予約IDが必要です。一覧から予約をクリックしてください。';
-  if (!EQUIPMENT_LIST.includes(p.equipment)) return '登録されていない装置名です。';
+  if (!ACTUAL_EQUIPMENT_LIST.includes(p.equipment)) return '登録されていない装置名です。メンテ情報タブは表示専用です。装置欄では実際の装置を選んでください。';
   if (!p.equipment || !p.name || !p.date || !p.start || !p.finish || !p.pass) return '必須項目を入力してください。パスワードも必要です。';
   if (p.start >= p.finish) return '終了時刻は開始時刻より後にしてください。';
+  if (p.maintenanceKind === 'maintenance' && !p.maintenanceTypes) return 'メンテを選択した場合は、原料交換・重故障・除害停止・定常メンテから1つ以上選択してください。';
   return '';
 }
 
@@ -167,12 +188,15 @@ function renderAll() {
 
 function renderCalendar() {
   const dates = [...Array(7)].map((_, i) => addDays(state.weekStart, i));
-  els.weekTitle.textContent = `${formatDate(dates[0])} ~ ${formatDate(dates[6])}`;
+  const maintenanceView = isMaintenanceView();
+  els.weekTitle.textContent = maintenanceView
+    ? `メンテ情報：${formatDate(dates[0])} ~ ${formatDate(dates[6])}`
+    : `${formatDate(dates[0])} ~ ${formatDate(dates[6])}`;
   els.calendarHead.innerHTML = '<tr>' + dates.map(d => `<th>${weekday(d)}<br>${formatDate(d)}</th>`).join('') + '</tr>';
   const cells = dates.map(d => {
     const date = formatDate(d);
-    const items = filteredReservations().filter(r => r.date === date).sort(sortByTime);
-    if (!items.length) return '<td><div class="day-empty">予約なし</div></td>';
+    const items = filteredReservations().filter(r => r.date === date).sort(sortByEquipmentThenTime);
+    if (!items.length) return `<td><div class="day-empty">${maintenanceView ? 'メンテ情報なし' : '予約なし'}</div></td>`;
     return '<td>' + items.map(eventHtml).join('') + '</td>';
   }).join('');
   els.calendarBody.innerHTML = `<tr>${cells}</tr>`;
@@ -180,17 +204,18 @@ function renderCalendar() {
 }
 
 function renderList() {
-  const items = filteredReservations().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  const maintenanceView = isMaintenanceView();
+  const items = filteredReservations().sort(sortByDateEquipmentTime);
   if (!items.length) {
-    els.list.innerHTML = '<div class="hint">この装置の予約はありません。</div>';
+    els.list.innerHTML = `<div class="hint">${maintenanceView ? 'メンテ情報が登録された予約はありません。' : 'この装置の予約はありません。'}</div>`;
     return;
   }
   els.list.innerHTML = items.map(r => `
-    <article class="card" data-id="${escapeHtml(r.id)}">
+    <article class="card${r.maintenanceTypes ? ' card-maintenance' : ''}" data-id="${escapeHtml(r.id)}">
       <div class="card-title">${escapeHtml(r.date)} ${escapeHtml(r.start)}-${escapeHtml(r.finish)}</div>
-      <div class="card-line"><span class="label">名前</span><span>${escapeHtml(r.name)}</span></div>
       <div class="card-line"><span class="label">装置</span><span>${escapeHtml(r.equipment)}</span></div>
-      ${r.maintenanceTypes ? `<div class="card-line"><span class="label">メンテ</span><span class="maintenance-tags">${maintenanceTagsHtml(r.maintenanceTypes)}</span></div>` : ''}
+      <div class="card-line"><span class="label">名前</span><span>${escapeHtml(r.name)}</span></div>
+      ${r.maintenanceTypes ? `<div class="card-line"><span class="label">メンテ情報</span><span class="maintenance-tags">${maintenanceTagsHtml(r.maintenanceTypes)}</span></div>` : ''}
       ${r.usage ? `<div class="card-line"><span class="label">使用目的</span><span>${escapeHtml(r.usage)}</span></div>` : ''}
       ${r.remark ? `<div class="card-line"><span class="label">備考</span><span>${escapeHtml(r.remark)}</span></div>` : ''}
       <div class="card-meta">予約ID: ${escapeHtml(r.id)}</div>
@@ -199,8 +224,10 @@ function renderList() {
 }
 
 function eventHtml(r) {
+  const maintenanceView = isMaintenanceView();
   return `<button type="button" class="event${r.maintenanceTypes ? ' event-maintenance' : ''}" data-id="${escapeHtml(r.id)}">
     <strong class="event-time">${escapeHtml(r.start)}-${escapeHtml(r.finish)}</strong>
+    ${maintenanceView ? `<span class="event-value event-equipment">${eventText(r.equipment)}</span>` : ''}
     <span class="event-value">${eventText(r.name)}</span>
     ${r.maintenanceTypes ? `<span class="event-badges">${maintenanceTagsHtml(r.maintenanceTypes)}</span>` : ''}
     ${r.usage ? `<span class="event-value">${eventText(r.usage)}</span>` : ''}
@@ -215,6 +242,7 @@ function fillForm(id) {
   els.mode.value = 'edit';
   els.id.value = r.id;
   els.equipment.value = r.equipment;
+  state.formEquipment = r.equipment;
   state.equipment = r.equipment;
   els.name.value = r.name;
   els.date.value = r.date;
@@ -231,7 +259,11 @@ function fillForm(id) {
 function filteredReservations() {
   const start = formatDate(state.weekStart);
   const end = formatDate(addDays(state.weekStart, 6));
-  return state.reservations.filter(r => r.equipment === state.equipment && r.date >= start && r.date <= end);
+  return state.reservations.filter(r => {
+    if (r.date < start || r.date > end) return false;
+    if (isMaintenanceView()) return Boolean(r.maintenanceTypes);
+    return r.equipment === state.equipment;
+  });
 }
 
 function apiCall(params) {
@@ -310,6 +342,8 @@ function isOverlap(a, b) {
   return a.equipment === b.equipment && a.date === b.date && b.start < a.finish && b.finish > a.start;
 }
 function sortByTime(a, b) { return (a.start + a.finish).localeCompare(b.start + b.finish); }
+function sortByEquipmentThenTime(a, b) { return (a.equipment + a.start + a.finish).localeCompare(b.equipment + b.start + b.finish); }
+function sortByDateEquipmentTime(a, b) { return (a.date + a.equipment + a.start + a.finish).localeCompare(b.date + b.equipment + b.start + b.finish); }
 function moveWeek(days) { state.weekStart = addDays(state.weekStart, days); renderAll(); }
 function startOfWeek(date) { const d = new Date(date); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day); d.setHours(0,0,0,0); return d; }
 function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate() + days); return d; }
@@ -321,26 +355,82 @@ function eventText(value) { return escapeHtml(value).replace(/([、。，．,;�
 function setMessage(text, isError) { els.message.textContent = 'メッセージ：' + text; els.message.className = 'message ' + (isError ? 'error' : 'ok'); }
 function setStatus(text, ok) { els.status.textContent = text; els.status.style.borderColor = ok ? 'rgba(155,231,194,0.8)' : 'rgba(255,255,255,0.3)'; }
 
+function getMaintenanceKind() {
+  const selected = els.maintenanceKind.find(input => input.checked);
+  return selected ? selected.value : 'none';
+}
+
 function getSelectedMaintenanceTypes() {
-  return els.maintenanceTypes.filter(input => input.checked).map(input => input.value).join('、');
+  const kind = getMaintenanceKind();
+  if (kind === 'epi') return MAINTENANCE_EPI_TYPE;
+  if (kind !== 'maintenance') return '';
+  return els.maintenanceDetails
+    .filter(input => input.checked)
+    .map(input => canonicalMaintenanceType(input.value))
+    .filter(v => MAINTENANCE_DETAIL_TYPE_LIST.includes(v))
+    .join('、');
 }
 
 function setMaintenanceTypes(value) {
-  const selected = normalizeMaintenanceTypes(value).split('、').filter(Boolean);
-  els.maintenanceTypes.forEach(input => {
-    input.checked = selected.includes(input.value);
+  const normalized = normalizeMaintenanceTypes(value);
+  const values = normalized.split('、').filter(Boolean);
+  const hasEpi = values.includes(MAINTENANCE_EPI_TYPE);
+  const details = values.filter(v => v !== MAINTENANCE_EPI_TYPE);
+
+  setMaintenanceKind(hasEpi ? 'epi' : (details.length ? 'maintenance' : 'none'));
+  els.maintenanceDetails.forEach(input => {
+    input.checked = details.includes(canonicalMaintenanceType(input.value));
+  });
+  updateMaintenanceDetailVisibility();
+}
+
+function setMaintenanceKind(kind) {
+  els.maintenanceKind.forEach(input => {
+    input.checked = input.value === kind;
   });
 }
 
+function updateMaintenanceDetailVisibility() {
+  const showDetails = getMaintenanceKind() === 'maintenance';
+  if (els.maintenanceDetailPanel) els.maintenanceDetailPanel.classList.toggle('is-hidden', !showDetails);
+  if (!showDetails) {
+    els.maintenanceDetails.forEach(input => input.checked = false);
+  }
+}
+
 function normalizeMaintenanceTypes(value) {
-  const allowed = new Set(MAINTENANCE_TYPE_LIST);
+  const allowed = new Set(MAINTENANCE_VALUE_LIST.map(canonicalMaintenanceType));
   const parts = String(value || '')
     .split(/[、,，]/)
-    .map(v => v.trim())
+    .map(v => canonicalMaintenanceType(v.trim()))
     .filter(v => allowed.has(v));
+
+  if (parts.includes(MAINTENANCE_EPI_TYPE)) return MAINTENANCE_EPI_TYPE;
   return Array.from(new Set(parts)).join('、');
 }
 
 function maintenanceTagsHtml(value) {
   return normalizeMaintenanceTypes(value).split('、').filter(Boolean).map(v => `<span class="maintenance-tag">${escapeHtml(v)}</span>`).join('');
+}
+
+function canonicalMaintenanceType(value) {
+  const v = String(value || '').trim();
+  if (!v) return '';
+  const map = {
+    '除害停止メンテ': '除害停止',
+    '重故障メンテ': '重故障',
+    'メンテ': '重故障',
+    '定常': '定常メンテ',
+    '通常メンテ': '定常メンテ',
+    '原料': '原料交換',
+  };
+  return map[v] || v;
+}
+
+function isActualEquipment(value) {
+  return value && value !== MAINTENANCE_TAB_NAME && value !== LEGACY_MAINTENANCE_TAB_NAME;
+}
+
+function isMaintenanceView() {
+  return state.equipment === MAINTENANCE_TAB_NAME;
 }

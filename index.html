@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>装置予約システム</title>
-  <link rel="stylesheet" href="style_v5.css?v=20260708-maintenance-v1" />
+  <link rel="stylesheet" href="style_v5.css?v=20260708-maintenance-v8" />
 </head>
 <body>
   <header class="site-header">
@@ -79,23 +79,50 @@
           </label>
         </div>
 
-        <fieldset class="checkbox-panel">
+        <fieldset class="checkbox-panel maintenance-input-panel">
           <legend>メンテ情報</legend>
-          <div class="check-grid">
-            <label class="check-option">
-              <input type="checkbox" name="maintenanceTypes" value="除害停止メンテ" />
-              <span>除害停止メンテ</span>
-            </label>
-            <label class="check-option">
-              <input type="checkbox" name="maintenanceTypes" value="重故障メンテ" />
-              <span>重故障メンテ</span>
-            </label>
-            <label class="check-option">
-              <input type="checkbox" name="maintenanceTypes" value="エピ" />
-              <span>エピ</span>
-            </label>
+
+          <div class="maintenance-step">
+            <div class="field-title">分類</div>
+            <div class="maintenance-kind-grid">
+              <label class="check-option">
+                <input type="radio" name="maintenanceKind" value="none" checked />
+                <span>なし</span>
+              </label>
+              <label class="check-option">
+                <input type="radio" name="maintenanceKind" value="maintenance" />
+                <span>メンテ</span>
+              </label>
+              <label class="check-option">
+                <input type="radio" name="maintenanceKind" value="epi" />
+                <span>エピ</span>
+              </label>
+            </div>
           </div>
-          <small class="field-note">必要な項目だけチェックしてください。通常予約では未選択で問題ありません。</small>
+
+          <div class="maintenance-detail-panel is-hidden" id="maintenanceDetailPanel">
+            <div class="field-title">メンテ内容</div>
+            <div class="check-grid maintenance-detail-grid">
+              <label class="check-option">
+                <input type="checkbox" name="maintenanceDetails" value="原料交換" />
+                <span>原料交換</span>
+              </label>
+              <label class="check-option">
+                <input type="checkbox" name="maintenanceDetails" value="重故障" />
+                <span>重故障</span>
+              </label>
+              <label class="check-option">
+                <input type="checkbox" name="maintenanceDetails" value="除害停止" />
+                <span>除害停止</span>
+              </label>
+              <label class="check-option">
+                <input type="checkbox" name="maintenanceDetails" value="定常メンテ" />
+                <span>定常メンテ</span>
+              </label>
+            </div>
+          </div>
+
+          <small class="field-note">通常予約は「なし」のままでOKです。メンテを選んだ場合だけ、下の4項目から1つ以上選択してください。メンテ情報タブには、ここで登録された内容だけが装置別にまとめて表示されます。</small>
         </fieldset>
 
         <label>
@@ -133,7 +160,7 @@
     <span>全員で共有する場合は、<code>config.js</code> にGoogle Apps ScriptのURLを設定してください。</span>
   </footer>
 
-  <script src="config.js?v=20260708-maintenance-v1"></script>
-  <script src="script_v5.js?v=20260708-maintenance-v1"></script>
+  <script src="config.js?v=20260708-maintenance-v8"></script>
+  <script src="script_v5.js?v=20260708-maintenance-v8"></script>
 </body>
 </html>

@@ -10,8 +10,8 @@
 
 const SHEET_NAME = 'Reservations';
 const HEADERS = ['id', 'equipment', 'name', 'date', 'start', 'finish', 'usageTime', 'usage', 'remark', 'passHash', 'createdAt', 'updatedAt', 'maintenanceTypes'];
-const ALLOWED_EQUIPMENTS = ['MOVPE 豊田中研', 'MOVPE #4', 'MOVPE #5', 'MOVPE #7', 'MOVPE #11', 'MOVPE #12', '全体のメンテ'];
-const ALLOWED_MAINTENANCE_TYPES = ['除害停止メンテ', '重故障メンテ', 'エピ'];
+const ALLOWED_EQUIPMENTS = ['MOVPE 豊田中研', 'MOVPE #4', 'MOVPE #5', 'MOVPE #7', 'MOVPE #11', 'MOVPE #12'];
+const ALLOWED_MAINTENANCE_TYPES = ['エピ', '原料交換', '重故障', '除害停止', '定常メンテ'];
 
 function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -132,7 +132,7 @@ function normalize_(p) {
 
 function validate_(d, needsId) {
   if (needsId && !d.id) return 'IDが必要です。';
-  if (ALLOWED_EQUIPMENTS.indexOf(d.equipment) === -1) return '登録されていない装置名です。';
+  if (ALLOWED_EQUIPMENTS.indexOf(d.equipment) === -1) return '登録されていない装置名です。メンテ情報タブは表示専用です。装置欄では実際の装置を選んでください。';
   if (!d.equipment || !d.name || !d.date || !d.start || !d.finish || !d.pass) return '必須項目を入力してください。パスワードも必要です。';
   if (d.start >= d.finish) return '終了時刻は開始時刻より後にしてください。';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date)) return '日付の形式が不正です。';
@@ -187,16 +187,30 @@ function rowToObject_(row) {
 function normalizeMaintenanceTypes_(value) {
   const allowed = ALLOWED_MAINTENANCE_TYPES;
   const seen = {};
-  return String(value || '')
+  const parts = String(value || '')
     .split(/[、,，]/)
-    .map(v => v.trim())
+    .map(v => canonicalMaintenanceType_(v.trim()))
     .filter(v => allowed.indexOf(v) !== -1)
     .filter(v => {
       if (seen[v]) return false;
       seen[v] = true;
       return true;
-    })
-    .join('、');
+    });
+  if (parts.indexOf('エピ') !== -1) return 'エピ';
+  return parts.join('、');
+}
+
+function canonicalMaintenanceType_(value) {
+  const v = String(value || '').trim();
+  const map = {
+    '除害停止メンテ': '除害停止',
+    '重故障メンテ': '重故障',
+    'メンテ': '重故障',
+    '定常': '定常メンテ',
+    '通常メンテ': '定常メンテ',
+    '原料': '原料交換',
+  };
+  return map[v] || v;
 }
 
 function hash_(value) {
