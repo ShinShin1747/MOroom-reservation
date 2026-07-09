@@ -360,112 +360,164 @@ function eventHtml(r, options = {}) {
 
 function weekTimeAxisHtml(items, dates, context = {}) {
   const dateKeys = dates.map(formatDate);
-  const rowTimes = scheduleRowTimes(items);
-  const byDateAndStart = new Map();
+  const range = timelineRange(items);
+  const height = Math.max(280, Math.round((range.end - range.start) * range.pxPerMinute));
+  const hourLabels = timelineHourLabels(range.start, range.end);
 
-  items.forEach(r => {
-    if (!dateKeys.includes(r.date)) return;
-    const key = `${r.date}__${normalizeTimeValue(r.start)}`;
-    if (!byDateAndStart.has(key)) byDateAndStart.set(key, []);
-    byDateAndStart.get(key).push(r);
-  });
-
-  const bodyRows = rowTimes.map(time => `
-    <tr>
-      <th class="time-axis-time">${escapeHtml(time)}</th>
-      ${dates.map(d => {
-        const date = formatDate(d);
-        const cellItems = (byDateAndStart.get(`${date}__${time}`) || []).sort(sortByEquipmentThenTime);
-        return `<td class="time-axis-cell">${cellItems.length ? `<div class="time-axis-events">${cellItems.map(r => eventHtml(r, { large: true, viewOnly: true, showEquipment: true })).join('')}</div>` : '<div class="time-axis-empty"></div>'}</td>`;
-      }).join('')}
-    </tr>
-  `).join('');
+  const dayColumns = dates.map(d => {
+    const date = formatDate(d);
+    const dayItems = items
+      .filter(r => r.date === date)
+      .sort(sortByTimeThenEquipment);
+    const laidOut = layoutTimelineEvents(dayItems, range.start, range.end);
+    return `
+      <section class="timeline-day-column" style="height:${height}px" aria-label="${escapeHtml(date)}">
+        <div class="timeline-grid-lines"></div>
+        ${laidOut.map(item => timelineEventHtml(item, range)).join('')}
+      </section>
+    `;
+  }).join('');
 
   const lastRow = `
-    <tr class="time-axis-last-row">
-      <th class="time-axis-time">最終使用</th>
-      ${dates.map(d => {
-        const date = formatDate(d);
-        const dayItems = items.filter(r => r.date === date);
-        return `<td class="time-axis-last-cell">${lastUsedEquipmentText(dayItems)}</td>`;
-      }).join('')}
-    </tr>
+    <div class="timeline-last-label">最終使用</div>
+    ${dates.map(d => {
+      const date = formatDate(d);
+      const dayItems = items.filter(r => r.date === date);
+      return `<div class="timeline-last-cell">${lastUsedEquipmentText(dayItems)}</div>`;
+    }).join('')}
   `;
 
   const empty = items.length ? '' : `<div class="time-axis-no-items">${context.maintenanceView ? 'この週のメンテ情報はありません。' : 'この週の予約はありません。'}</div>`;
 
   return `
-    <div class="time-axis-view">
+    <div class="timeline-view" style="--timeline-hour-height:${range.hourHeight}px; --timeline-height:${height}px;">
       ${empty}
-      <table class="time-axis-table">
-        <thead>
-          <tr>
-            <th class="time-axis-corner">時間</th>
-            ${dates.map(d => `<th class="time-axis-day"><span>${weekday(d)}</span><strong>${formatDate(d)}</strong></th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>${bodyRows}${lastRow}</tbody>
-      </table>
+      <div class="timeline-grid-table">
+        <div class="timeline-corner">時間</div>
+        ${dates.map(d => `<div class="timeline-day-head"><span>${weekday(d)}</span><strong>${formatDate(d)}</strong></div>`).join('')}
+        <div class="timeline-time-column" style="height:${height}px">
+          ${hourLabels.map(label => `<div class="timeline-time-label" style="top:${Math.round((label.minute - range.start) * range.pxPerMinute)}px">${escapeHtml(label.text)}</div>`).join('')}
+        </div>
+        ${dayColumns}
+        ${lastRow}
+      </div>
     </div>
   `;
 }
 
-function scheduleRowTimes(items) {
-  const times = new Set();
-  const minutes = items
+function timelineRange(items) {
+  const parsed = items
     .flatMap(r => [parseTimeMinutes(r.start), parseTimeMinutes(r.finish)])
     .filter(v => v !== null);
 
   let startMinute = 8 * 60;
-  let endMinute = 20 * 60;
+  let endMinute = 18 * 60;
 
-  if (minutes.length) {
-    startMinute = Math.min(startMinute, Math.floor(Math.min(...minutes) / 60) * 60);
-    endMinute = Math.max(endMinute, Math.ceil(Math.max(...minutes) / 60) * 60);
+  if (parsed.length) {
+    startMinute = Math.floor(Math.min(...parsed) / 60) * 60 - 60;
+    endMinute = Math.ceil(Math.max(...parsed) / 60) * 60 + 60;
   }
 
   startMinute = Math.max(0, startMinute);
   endMinute = Math.min(24 * 60, Math.max(startMinute + 60, endMinute));
 
-  for (let m = startMinute; m <= endMinute; m += 60) {
-    times.add(minutesToTime(m));
-  }
+  const hourHeight = 56;
+  return {
+    start: startMinute,
+    end: endMinute,
+    hourHeight,
+    pxPerMinute: hourHeight / 60,
+  };
+}
 
-  items.forEach(r => {
-    const start = parseTimeMinutes(r.start);
-    if (start !== null) times.add(minutesToTime(start));
+function timelineHourLabels(startMinute, endMinute) {
+  const labels = [];
+  for (let m = startMinute; m <= endMinute; m += 60) {
+    labels.push({ minute: m, text: minutesToTime(m) });
+  }
+  return labels;
+}
+
+function layoutTimelineEvents(items, rangeStart, rangeEnd) {
+  const normalized = items
+    .map(r => {
+      const start = parseTimeMinutes(r.start);
+      const finish = parseTimeMinutes(r.finish);
+      if (start === null || finish === null || finish <= start) return null;
+      return { reservation: r, start, finish };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.start - b.start || a.finish - b.finish || a.reservation.equipment.localeCompare(b.reservation.equipment));
+
+  const clusters = [];
+  let current = [];
+  let clusterEnd = null;
+
+  normalized.forEach(item => {
+    if (!current.length || item.start < clusterEnd) {
+      current.push(item);
+      clusterEnd = clusterEnd === null ? item.finish : Math.max(clusterEnd, item.finish);
+    } else {
+      clusters.push(current);
+      current = [item];
+      clusterEnd = item.finish;
+    }
+  });
+  if (current.length) clusters.push(current);
+
+  const laidOut = [];
+
+  clusters.forEach(cluster => {
+    const laneEnds = [];
+    const laneItems = [];
+
+    cluster.forEach(item => {
+      let lane = laneEnds.findIndex(end => end <= item.start);
+      if (lane < 0) {
+        lane = laneEnds.length;
+        laneEnds.push(item.finish);
+      } else {
+        laneEnds[lane] = item.finish;
+      }
+      laneItems.push({ ...item, lane });
+    });
+
+    const laneCount = Math.max(1, laneEnds.length);
+    laneItems.forEach(item => {
+      laidOut.push({
+        ...item,
+        laneCount,
+        top: Math.max(0, item.start - rangeStart),
+        duration: Math.max(15, Math.min(rangeEnd, item.finish) - Math.max(rangeStart, item.start)),
+      });
+    });
   });
 
-  return Array.from(times).sort((a, b) => parseTimeMinutes(a) - parseTimeMinutes(b));
+  return laidOut;
 }
 
-function parseTimeMinutes(value) {
-  const normalized = normalizeTimeValue(value);
-  const match = normalized.match(/^(\d{2}):(\d{2})$/);
-  if (!match) return null;
-  const h = Number(match[1]);
-  const m = Number(match[2]);
-  if (h < 0 || h > 24 || m < 0 || m > 59) return null;
-  return h * 60 + m;
+function timelineEventHtml(item, range) {
+  const r = item.reservation;
+  const top = Math.round(item.top * range.pxPerMinute);
+  const height = Math.max(28, Math.round(item.duration * range.pxPerMinute) - 4);
+  const gap = 1.6;
+  const width = 100 / item.laneCount;
+  const left = item.lane * width;
+  const equipIndex = Math.max(0, ACTUAL_EQUIPMENT_LIST.indexOf(r.equipment));
+  const colorClass = `eq-color-${equipIndex % 8}`;
+  const style = `top:${top}px;height:${height}px;left:calc(${left}% + ${gap}px);width:calc(${width}% - ${gap * 2}px);`;
+
+  return `
+    <article class="timeline-event ${colorClass}" style="${style}">
+      <div class="timeline-event-time">${escapeHtml(r.start)}-${escapeHtml(r.finish)}</div>
+      <div class="timeline-event-equipment">${escapeHtml(r.equipment)}</div>
+      <div class="timeline-event-name">${escapeHtml(r.name)}</div>
+      ${r.maintenanceTypes ? `<div class="timeline-event-purpose">${maintenanceTagsHtml(r.maintenanceTypes)}</div>` : ''}
+      ${r.remark ? `<div class="timeline-event-remark">${eventText(r.remark)}</div>` : ''}
+    </article>
+  `;
 }
 
-function minutesToTime(value) {
-  const minutes = Math.max(0, Math.min(24 * 60, value));
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-function lastUsedEquipmentText(items) {
-  const valid = items.filter(r => normalizeTimeValue(r.finish));
-  if (!valid.length) return '<span class="time-axis-last-empty">なし</span>';
-
-  const latestFinish = valid.reduce((max, r) => r.finish > max ? r.finish : max, valid[0].finish);
-  const latestItems = valid.filter(r => r.finish === latestFinish).sort(sortByEquipmentThenTime);
-  const equipmentText = latestItems.map(r => r.equipment).filter(Boolean).join('、');
-
-  return `<div class="time-axis-last-used"><strong>${escapeHtml(latestFinish)}</strong><span>${escapeHtml(equipmentText)}</span></div>`;
-}
 
 function dayScheduleHtml(items) {
   const groups = new Map();
