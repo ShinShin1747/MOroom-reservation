@@ -17,7 +17,7 @@
   </header>
 
   <main class="layout">
-    <section class="panel full">
+    <section id="mainViewPanel" class="panel full">
       <div id="equipmentTabs" class="tabs"></div>
       <div id="calendarToolbar" class="toolbar">
         <label class="month-jump" for="monthPicker"><span>月選択</span><input id="monthPicker" type="month"></label>
@@ -52,7 +52,7 @@
       </div>
     </section>
 
-    <section class="panel">
+    <section id="formPanel" class="panel">
       <h2>予約フォーム</h2>
       <p id="message" class="message">メッセージ：予約内容を入力してください。</p>
       <form id="reservationForm">
@@ -123,7 +123,7 @@
       </form>
     </section>
 
-    <section class="panel">
+    <section id="reservationPanel" class="panel">
       <div class="list-header">
         <h2>予約一覧</h2>
         <button type="button" id="reloadBtn">再読み込み</button>
@@ -138,7 +138,7 @@
     <span>全員で共有する場合は、<code>config.js</code> にGoogle Apps ScriptのURLを設定してください。</span>
   </footer>
 
-  <script src="config.js?v=overall-cachefix-20260709"></script>
-  <script src="script_v5.js?v=overall-cachefix-20260709"></script>
+  <script src="config.js?v=special-view-20260709"></script>
+  <script src="script_v5.js?v=special-view-20260709"></script>
 </body>
 </html>

@@ -25,6 +25,10 @@ const state = {
 };
 
 const els = {
+  layout: document.querySelector('.layout'),
+  mainViewPanel: document.getElementById('mainViewPanel'),
+  formPanel: document.getElementById('formPanel'),
+  reservationPanel: document.getElementById('reservationPanel'),
   status: document.getElementById('status'),
   dataMode: document.getElementById('dataMode'),
   tabs: document.getElementById('equipmentTabs'),
@@ -218,6 +222,7 @@ function validatePayload(p) {
 }
 
 function renderAll() {
+  updateLayoutMode();
   renderEquipmentControls();
   renderCalendar();
   renderList();
@@ -249,7 +254,10 @@ function renderCalendar() {
     const items = filteredReservations().filter(r => r.date === date).sort(overallView ? sortByTimeThenEquipment : sortByEquipmentThenTime);
     if (!items.length) return `<td><div class="day-empty">${maintenanceView ? 'メンテ情報なし' : '予約なし'}</div></td>`;
     const lastUsed = overallView ? lastUsedEquipmentHtml(items) : '';
-    return `<td>${items.map(eventHtml).join('')}${lastUsed}</td>`;
+    const content = (maintenanceView || overallView)
+      ? dayScheduleHtml(items)
+      : items.map(r => eventHtml(r)).join('');
+    return `<td>${content}${lastUsed}</td>`;
   }).join('');
 
   els.calendarBody.innerHTML = `<tr>${cells}</tr>`;
@@ -265,8 +273,8 @@ function renderEmailContentView() {
 }
 
 function renderList() {
-  if (isEmailContentView()) {
-    els.list.innerHTML = '<div class="hint">メール内容タブでは予約一覧は表示しません。上の「メール内容」を確認してください。</div>';
+  if (isSpecialView()) {
+    els.list.innerHTML = '';
     return;
   }
   const maintenanceView = isMaintenanceView();
@@ -324,19 +332,44 @@ function renderEmailList() {
   `).join('');
 }
 
-function eventHtml(r) {
+function eventHtml(r, options = {}) {
   const maintenanceView = isMaintenanceView();
   const overallView = isOverallView();
-  return `
-    <button type="button" class="event${reservationStatusClass(r, 'event')}" data-id="${escapeHtml(r.id)}">
-      <strong class="event-time">${escapeHtml(r.start)}-${escapeHtml(r.finish)}</strong>
-      ${(maintenanceView || overallView) ? `<span class="event-line event-equipment">${eventText(r.equipment)}</span>` : ''}
-      <span class="event-line">${eventText(r.name)}</span>
+  const showEquipment = options.showEquipment || maintenanceView || overallView;
+  const className = `event${options.large ? ' event-large' : ''}${reservationStatusClass(r, 'event')}`;
+  const timeHtml = options.hideTime ? '' : `<strong class="event-time">${escapeHtml(r.start)}-${escapeHtml(r.finish)}</strong>`;
+  const inner = `
+      ${timeHtml}
+      ${showEquipment ? `<span class="event-line event-equipment">${eventText(r.equipment)}</span>` : ''}
+      <span class="event-line event-name">${eventText(r.name)}</span>
       ${r.maintenanceTypes ? maintenanceTagsHtml(r.maintenanceTypes) : ''}
       ${r.remark ? `<span class="event-line event-remark">${eventText(r.remark)}</span>` : ''}
-      <small class="event-id">ID: ${escapeHtml(r.id)}</small>
-    </button>
+      ${options.viewOnly ? '' : `<small class="event-id">ID: ${escapeHtml(r.id)}</small>`}
   `;
+
+  if (options.viewOnly) {
+    return `<div class="${className}">${inner}</div>`;
+  }
+
+  return `<button type="button" class="${className}" data-id="${escapeHtml(r.id)}">${inner}</button>`;
+}
+
+function dayScheduleHtml(items) {
+  const groups = new Map();
+  items.forEach(r => {
+    const key = `${r.start || '??:??'}-${r.finish || '??:??'}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  });
+
+  return `<div class="day-schedule-large">${Array.from(groups.entries()).map(([time, groupItems]) => `
+    <div class="time-group">
+      <div class="time-group-label">${escapeHtml(time)}</div>
+      <div class="time-group-items">
+        ${groupItems.sort(sortByEquipmentThenTime).map(r => eventHtml(r, { hideTime: true, large: true, viewOnly: true, showEquipment: true })).join('')}
+      </div>
+    </div>
+  `).join('')}</div>`;
 }
 
 
@@ -670,6 +703,19 @@ function canonicalMaintenanceType(value) {
 
 function isActualEquipment(value) {
   return value && value !== OVERALL_TAB_NAME && value !== MAINTENANCE_TAB_NAME && value !== LEGACY_MAINTENANCE_TAB_NAME && value !== EMAIL_CONTENT_TAB_NAME;
+}
+
+function updateLayoutMode() {
+  const special = isSpecialView();
+  document.body.classList.toggle('special-view', special);
+  document.body.classList.toggle('email-view-mode', isEmailContentView());
+  document.body.classList.toggle('schedule-wide-view', isOverallView() || isMaintenanceView());
+  if (els.formPanel) els.formPanel.classList.toggle('is-hidden', special);
+  if (els.reservationPanel) els.reservationPanel.classList.toggle('is-hidden', special);
+}
+
+function isSpecialView() {
+  return isOverallView() || isMaintenanceView() || isEmailContentView();
 }
 
 function isOverallView() {

@@ -368,3 +368,107 @@ code { background: #eef2f6; padding: 2px 5px; border-radius: 5px; }
   .maintenance-kind-grid, .check-grid { grid-template-columns: 1fr; }
   .email-card-head { flex-direction: column; }
 }
+
+
+/* Special tabs: 全体表示 / メンテ情報 / メール内容 */
+.special-view .layout {
+  grid-template-columns: 1fr;
+}
+
+.special-view #mainViewPanel {
+  grid-column: 1 / -1;
+}
+
+.schedule-wide-view .calendar {
+  min-width: 1180px;
+}
+
+.schedule-wide-view .calendar th {
+  font-size: 1rem;
+  padding: 12px 10px;
+}
+
+.schedule-wide-view .calendar td {
+  height: 260px;
+  padding: 12px;
+}
+
+.day-schedule-large {
+  display: grid;
+  gap: 12px;
+}
+
+.time-group {
+  border: 1px solid #c7d2fe;
+  border-radius: 14px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.time-group-label {
+  background: #e0e7ff;
+  color: #1e3a8a;
+  font-weight: 900;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  padding: 8px 10px;
+  letter-spacing: 0.01em;
+}
+
+.time-group-items {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+}
+
+.event.event-large {
+  cursor: default;
+  padding: 10px 12px;
+  margin-bottom: 0;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  border-radius: 12px;
+}
+
+.event.event-large .event-equipment {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #1d4ed8;
+}
+
+.event.event-large .event-name {
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.schedule-wide-view .day-last-equipment {
+  margin-top: 14px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  border-radius: 12px;
+}
+
+.schedule-wide-view .day-empty {
+  font-size: 1rem;
+  padding: 16px 8px;
+}
+
+.email-view-mode .email-content-view {
+  margin-top: 18px;
+}
+
+.email-view-mode .email-card {
+  padding: 16px;
+  border-radius: 16px;
+}
+
+.email-view-mode .email-title {
+  font-size: 1.08rem;
+}
+
+.email-view-mode .email-summary,
+.email-view-mode .email-snippet,
+.email-view-mode .email-body pre {
+  font-size: 1rem;
+  line-height: 1.6;
+}
