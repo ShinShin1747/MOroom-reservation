@@ -247,17 +247,21 @@ function renderCalendar() {
       ? `全体表示：${formatDate(dates[0])} ~ ${formatDate(dates[6])}`
       : `${formatDate(dates[0])} ~ ${formatDate(dates[6])}`;
 
+  const visibleItems = filteredReservations().sort(overallView ? sortByTimeThenEquipment : sortByEquipmentThenTime);
+
+  if (maintenanceView || overallView) {
+    els.calendarHead.innerHTML = '';
+    els.calendarBody.innerHTML = `<tr><td class="time-axis-host" colspan="8">${weekTimeAxisHtml(visibleItems, dates, { maintenanceView, overallView })}</td></tr>`;
+    return;
+  }
+
   els.calendarHead.innerHTML = `<tr>${dates.map(d => `<th>${weekday(d)}<br>${formatDate(d)}</th>`).join('')}</tr>`;
 
   const cells = dates.map(d => {
     const date = formatDate(d);
-    const items = filteredReservations().filter(r => r.date === date).sort(overallView ? sortByTimeThenEquipment : sortByEquipmentThenTime);
-    if (!items.length) return `<td><div class="day-empty">${maintenanceView ? 'メンテ情報なし' : '予約なし'}</div></td>`;
-    const lastUsed = overallView ? lastUsedEquipmentHtml(items) : '';
-    const content = (maintenanceView || overallView)
-      ? dayScheduleHtml(items)
-      : items.map(r => eventHtml(r)).join('');
-    return `<td>${content}${lastUsed}</td>`;
+    const items = visibleItems.filter(r => r.date === date).sort(sortByEquipmentThenTime);
+    if (!items.length) return `<td><div class="day-empty">予約なし</div></td>`;
+    return `<td>${items.map(r => eventHtml(r)).join('')}</td>`;
   }).join('');
 
   els.calendarBody.innerHTML = `<tr>${cells}</tr>`;
@@ -352,6 +356,115 @@ function eventHtml(r, options = {}) {
   }
 
   return `<button type="button" class="${className}" data-id="${escapeHtml(r.id)}">${inner}</button>`;
+}
+
+function weekTimeAxisHtml(items, dates, context = {}) {
+  const dateKeys = dates.map(formatDate);
+  const rowTimes = scheduleRowTimes(items);
+  const byDateAndStart = new Map();
+
+  items.forEach(r => {
+    if (!dateKeys.includes(r.date)) return;
+    const key = `${r.date}__${normalizeTimeValue(r.start)}`;
+    if (!byDateAndStart.has(key)) byDateAndStart.set(key, []);
+    byDateAndStart.get(key).push(r);
+  });
+
+  const bodyRows = rowTimes.map(time => `
+    <tr>
+      <th class="time-axis-time">${escapeHtml(time)}</th>
+      ${dates.map(d => {
+        const date = formatDate(d);
+        const cellItems = (byDateAndStart.get(`${date}__${time}`) || []).sort(sortByEquipmentThenTime);
+        return `<td class="time-axis-cell">${cellItems.length ? `<div class="time-axis-events">${cellItems.map(r => eventHtml(r, { large: true, viewOnly: true, showEquipment: true })).join('')}</div>` : '<div class="time-axis-empty"></div>'}</td>`;
+      }).join('')}
+    </tr>
+  `).join('');
+
+  const lastRow = `
+    <tr class="time-axis-last-row">
+      <th class="time-axis-time">最終使用</th>
+      ${dates.map(d => {
+        const date = formatDate(d);
+        const dayItems = items.filter(r => r.date === date);
+        return `<td class="time-axis-last-cell">${lastUsedEquipmentText(dayItems)}</td>`;
+      }).join('')}
+    </tr>
+  `;
+
+  const empty = items.length ? '' : `<div class="time-axis-no-items">${context.maintenanceView ? 'この週のメンテ情報はありません。' : 'この週の予約はありません。'}</div>`;
+
+  return `
+    <div class="time-axis-view">
+      ${empty}
+      <table class="time-axis-table">
+        <thead>
+          <tr>
+            <th class="time-axis-corner">時間</th>
+            ${dates.map(d => `<th class="time-axis-day"><span>${weekday(d)}</span><strong>${formatDate(d)}</strong></th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>${bodyRows}${lastRow}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function scheduleRowTimes(items) {
+  const times = new Set();
+  const minutes = items
+    .flatMap(r => [parseTimeMinutes(r.start), parseTimeMinutes(r.finish)])
+    .filter(v => v !== null);
+
+  let startMinute = 8 * 60;
+  let endMinute = 20 * 60;
+
+  if (minutes.length) {
+    startMinute = Math.min(startMinute, Math.floor(Math.min(...minutes) / 60) * 60);
+    endMinute = Math.max(endMinute, Math.ceil(Math.max(...minutes) / 60) * 60);
+  }
+
+  startMinute = Math.max(0, startMinute);
+  endMinute = Math.min(24 * 60, Math.max(startMinute + 60, endMinute));
+
+  for (let m = startMinute; m <= endMinute; m += 60) {
+    times.add(minutesToTime(m));
+  }
+
+  items.forEach(r => {
+    const start = parseTimeMinutes(r.start);
+    if (start !== null) times.add(minutesToTime(start));
+  });
+
+  return Array.from(times).sort((a, b) => parseTimeMinutes(a) - parseTimeMinutes(b));
+}
+
+function parseTimeMinutes(value) {
+  const normalized = normalizeTimeValue(value);
+  const match = normalized.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return null;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  if (h < 0 || h > 24 || m < 0 || m > 59) return null;
+  return h * 60 + m;
+}
+
+function minutesToTime(value) {
+  const minutes = Math.max(0, Math.min(24 * 60, value));
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function lastUsedEquipmentText(items) {
+  const valid = items.filter(r => normalizeTimeValue(r.finish));
+  if (!valid.length) return '<span class="time-axis-last-empty">なし</span>';
+
+  const latestFinish = valid.reduce((max, r) => r.finish > max ? r.finish : max, valid[0].finish);
+  const latestItems = valid.filter(r => r.finish === latestFinish).sort(sortByEquipmentThenTime);
+  const equipmentText = latestItems.map(r => r.equipment).filter(Boolean).join('、');
+
+  return `<div class="time-axis-last-used"><strong>${escapeHtml(latestFinish)}</strong><span>${escapeHtml(equipmentText)}</span></div>`;
 }
 
 function dayScheduleHtml(items) {

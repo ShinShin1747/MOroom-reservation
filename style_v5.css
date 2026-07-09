@@ -472,3 +472,193 @@ code { background: #eef2f6; padding: 2px 5px; border-radius: 5px; }
   font-size: 1rem;
   line-height: 1.6;
 }
+
+
+/* Time-axis special views: 全体表示 / メンテ情報 */
+body.special-view .layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+body.special-view #mainViewPanel {
+  grid-column: 1 / -1;
+}
+body.special-view #formPanel,
+body.special-view #reservationPanel {
+  display: none !important;
+}
+body.schedule-wide-view .calendar-wrap {
+  overflow-x: auto;
+}
+body.schedule-wide-view .calendar {
+  min-width: 1180px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+body.schedule-wide-view .calendar th,
+body.schedule-wide-view .calendar td {
+  border: 0;
+  padding: 0;
+}
+.time-axis-host {
+  padding: 0 !important;
+  background: transparent;
+}
+.time-axis-view {
+  width: 100%;
+}
+.time-axis-no-items {
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-weight: 700;
+}
+.time-axis-table {
+  width: 100%;
+  min-width: 1180px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+}
+.time-axis-table th,
+.time-axis-table td {
+  border-right: 1px solid var(--line) !important;
+  border-bottom: 1px solid var(--line) !important;
+  vertical-align: top;
+}
+.time-axis-table tr > *:last-child {
+  border-right: 0 !important;
+}
+.time-axis-table tbody tr:last-child > * {
+  border-bottom: 0 !important;
+}
+.time-axis-corner,
+.time-axis-time {
+  width: 82px;
+  min-width: 82px;
+  text-align: center;
+  background: #f2f4f7;
+  color: #344054;
+  font-weight: 900;
+}
+.time-axis-corner {
+  height: 56px;
+  vertical-align: middle !important;
+}
+.time-axis-day {
+  height: 56px;
+  padding: 8px 6px !important;
+  background: #f2f4f7;
+  text-align: center;
+  vertical-align: middle !important;
+}
+.time-axis-day span {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.2;
+}
+.time-axis-day strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.92rem;
+  color: var(--text);
+  line-height: 1.2;
+}
+.time-axis-time {
+  padding: 16px 6px !important;
+  font-size: 0.98rem;
+  line-height: 1.2;
+  vertical-align: top !important;
+}
+.time-axis-cell {
+  min-height: 108px;
+  height: 108px;
+  padding: 8px !important;
+  background: #fff;
+}
+.time-axis-empty {
+  min-height: 90px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+}
+.time-axis-events {
+  display: grid;
+  gap: 8px;
+}
+.time-axis-cell .event.event-large {
+  width: 100%;
+  min-height: 84px;
+  padding: 10px 11px;
+  border-radius: 13px;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  cursor: default;
+  text-align: left;
+}
+.time-axis-cell .event-time {
+  font-size: 0.95rem;
+  margin-bottom: 5px;
+}
+.time-axis-cell .event-equipment {
+  font-size: 0.92rem;
+  color: #1d4ed8;
+}
+.time-axis-cell .event-name {
+  font-weight: 800;
+}
+.time-axis-cell .maintenance-tags {
+  margin-top: 6px;
+}
+.time-axis-last-row th,
+.time-axis-last-row td {
+  background: #eff6ff;
+}
+.time-axis-last-row .time-axis-time {
+  color: #1e3a8a;
+  vertical-align: middle !important;
+}
+.time-axis-last-cell {
+  padding: 10px 8px !important;
+  min-height: 64px;
+  height: 64px;
+  vertical-align: middle !important;
+}
+.time-axis-last-used {
+  display: grid;
+  gap: 3px;
+  align-items: center;
+  justify-items: center;
+  text-align: center;
+  color: #1e3a8a;
+  font-weight: 800;
+  line-height: 1.25;
+}
+.time-axis-last-used strong {
+  font-size: 1rem;
+}
+.time-axis-last-used span {
+  font-size: 0.84rem;
+  word-break: break-word;
+}
+.time-axis-last-empty {
+  display: block;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 700;
+}
+body.email-view-mode #calendarToolbar,
+body.email-view-mode #calendarWrap {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .time-axis-table { min-width: 980px; }
+  .time-axis-cell { height: 104px; }
+  .time-axis-cell .event.event-large { font-size: 0.82rem; }
+}
