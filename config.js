@@ -1,5 +1,5 @@
 // 共有予約として使う場合は、Google Apps Script Web App URL をここに貼ってください。
-// 空欄のままだと、各PCのブラウザ内だけに保存されます。全員共有にはなりません。
+// 空欄のままだと、各PC・各ブラウザ内だけに保存されます。
 const API_URL = "https://script.google.com/macros/s/AKfycbyHchmc0kSAb9lDh9qmamsjY_21Z9PI5KzdWeQ0_QuuPScIlXj1cDn59bZUmqqXZRR-/exec";
 
 // 使用する装置名。
