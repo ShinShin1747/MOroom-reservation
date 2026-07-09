@@ -373,7 +373,7 @@ function weekTimeAxisHtml(items, dates, context = {}) {
     return `
       <section class="timeline-day-column" style="height:${height}px" aria-label="${escapeHtml(date)}">
         <div class="timeline-grid-lines"></div>
-        ${laidOut.map(item => timelineEventHtml(item, range)).join('')}
+        ${laidOut.map(item => timelineEventHtml(item, range, context)).join('')}
       </section>
     `;
   }).join('');
@@ -496,7 +496,7 @@ function layoutTimelineEvents(items, rangeStart, rangeEnd) {
   return laidOut;
 }
 
-function timelineEventHtml(item, range) {
+function timelineEventHtml(item, range, context = {}) {
   const r = item.reservation;
   const top = Math.round(item.top * range.pxPerMinute);
   const height = Math.max(28, Math.round(item.duration * range.pxPerMinute) - 4);
@@ -505,7 +505,16 @@ function timelineEventHtml(item, range) {
   const left = item.lane * width;
   const equipIndex = Math.max(0, ACTUAL_EQUIPMENT_LIST.indexOf(r.equipment));
   const colorClass = `eq-color-${equipIndex % 8}`;
+  const overallOnly = !!context.overallView;
   const style = `top:${top}px;height:${height}px;left:calc(${left}% + ${gap}px);width:calc(${width}% - ${gap * 2}px);`;
+
+  if (overallOnly) {
+    return `
+      <article class="timeline-event timeline-event-overall ${colorClass}" style="${style}" title="${escapeHtml(r.start)}-${escapeHtml(r.finish)} ${escapeHtml(r.equipment)}">
+        <div class="timeline-event-equipment timeline-event-equipment-only">${escapeHtml(r.equipment)}</div>
+      </article>
+    `;
+  }
 
   return `
     <article class="timeline-event ${colorClass}" style="${style}">

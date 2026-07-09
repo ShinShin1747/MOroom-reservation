@@ -847,3 +847,20 @@ body.schedule-wide-view .calendar td.time-axis-host {
   .timeline-event-equipment { font-size: 0.8rem; }
   .timeline-event-name { font-size: 0.76rem; }
 }
+
+
+/* Overall tab: show only equipment names in timeline blocks. */
+.timeline-event-overall {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 6px 6px;
+}
+
+.timeline-event-equipment-only {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0;
+}
