@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '20260710-v9-runtime-fix';
+const APP_VERSION = '20260710-v11-equipment-cards';
 
 const OVERALL_TAB_NAME = '全体表示';
 const MAINTENANCE_TAB_NAME = 'メンテ情報';
@@ -36,6 +36,8 @@ const state = {
   cacheLoaded: false,
   initialScrollDone: false,
   refreshTimer: null,
+  emailLoading: false,
+  emailLoaded: false,
 };
 
 const els = {};
@@ -112,7 +114,7 @@ function bindEvents() {
   document.getElementById('nextWeek').addEventListener('click', () => moveWeek(7));
   document.getElementById('reloadBtn').addEventListener('click', () => loadReservations({ background: false, force: true }));
   els.monthPicker.addEventListener('change', () => jumpToMonth(els.monthPicker.value));
-  els.emailReloadBtn.addEventListener('click', loadEmailReservations);
+  els.emailReloadBtn.addEventListener('click', () => loadEmailReservations({ force: true }));
   els.form.addEventListener('submit', handleSubmit);
   els.equipment.addEventListener('change', () => {
     state.formEquipment = els.equipment.value;
@@ -144,6 +146,9 @@ function renderEquipmentControls() {
       }
       updateActiveTab();
       renderAll();
+      if (isEmailView() && !state.emailLoaded && !state.emailLoading) {
+        window.setTimeout(() => loadEmailReservations({ force: false }), 0);
+      }
     });
   });
 
@@ -269,19 +274,87 @@ function renderAll() {
     renderEmailList();
     return;
   }
-  renderTimeline();
+  if (isSpecialScheduleView()) {
+    renderTimeline();
+  } else {
+    renderEquipmentWeekBoard();
+  }
   renderReservationList();
 }
 
 function updateViewVisibility() {
   const email = isEmailView();
+  const expanded = email || isSpecialScheduleView();
+
   els.calendarToolbar.classList.toggle('is-hidden', email);
   els.calendarWrap.classList.toggle('is-hidden', email);
+  els.calendarWrap.classList.toggle('equipment-board-mode', !email && !isSpecialScheduleView());
   els.emailContentView.classList.toggle('is-hidden', !email);
-  els.formPanel.classList.toggle('is-hidden', email);
-  els.reservationPanel.classList.toggle('is-hidden', email || isSpecialScheduleView());
+  els.formPanel.classList.toggle('is-hidden', expanded);
+  els.reservationPanel.classList.toggle('is-hidden', expanded);
   els.viewLegend.classList.toggle('is-hidden', email);
+  els.mainViewPanel.classList.toggle('expanded-view', expanded);
+  document.body.classList.toggle('expanded-view-active', expanded);
+
   if (email) els.weekTitle.textContent = 'メール内容';
+}
+
+function renderEquipmentWeekBoard() {
+  const dates = Array.from({ length: 7 }, (_, i) => addDays(state.weekStart, i));
+  const items = filteredReservations().sort(sortByDateTime);
+  els.weekTitle.textContent = `${state.view}：${formatDate(dates[0])} ～ ${formatDate(dates[6])}`;
+  renderLegend(items);
+
+  const heads = dates.map(date => {
+    const key = formatDate(date);
+    const todayClass = key === formatDate(new Date()) ? ' today' : '';
+    return `<div class="equipment-board-day-head${todayClass}"><span class="dow">${weekday(date)}</span><span class="date-label">${formatDateShort(date)}</span></div>`;
+  }).join('');
+
+  const columns = dates.map(date => {
+    const key = formatDate(date);
+    const todayClass = key === formatDate(new Date()) ? ' today' : '';
+    const dayItems = items.filter(item => item.date === key).sort(sortByTimeThenEquipment);
+    const cards = dayItems.length
+      ? dayItems.map(renderEquipmentCard).join('')
+      : '<div class="equipment-day-empty">予約なし</div>';
+    return `<div class="equipment-day-column${todayClass}" data-date="${key}">${cards}</div>`;
+  }).join('');
+
+  els.timeline.innerHTML = `
+    <div class="equipment-week-board">
+      <div class="equipment-board-header">${heads}</div>
+      <div class="equipment-board-body">${columns}</div>
+    </div>`;
+
+  els.timeline.querySelectorAll('[data-reservation-id]').forEach(button => {
+    button.addEventListener('click', () => fillForm(button.dataset.reservationId));
+  });
+
+  els.calendarWrap.scrollTop = 0;
+  state.initialScrollDone = false;
+}
+
+function renderEquipmentCard(r) {
+  const purpose = displayPurpose(r);
+  const purposeClass = reservationPurposeClass(r);
+  const purposeLabel = r.maintenanceKind === 'epi' ? 'エピ' : isMaintenanceReservation(r) ? 'メンテ' : purpose;
+  const title = [
+    `${r.start}-${r.finish}`,
+    r.name,
+    purpose,
+    r.remark,
+  ].filter(Boolean).join(' / ');
+
+  return `<button type="button" class="equipment-event ${purposeClass}"
+    data-reservation-id="${escapeHtml(r.id)}"
+    title="${escapeHtml(title)}">
+      <span class="equipment-event-time">${escapeHtml(r.start)}-${escapeHtml(r.finish)}</span>
+      <span class="equipment-event-name">${escapeHtml(r.name)}</span>
+      ${purposeLabel ? `<span class="equipment-event-purpose">${escapeHtml(purposeLabel)}</span>` : ''}
+      ${r.maintenanceKind === 'maintenance' && purpose ? `<span class="equipment-event-detail">${escapeHtml(purpose)}</span>` : ''}
+      ${r.remark ? `<span class="equipment-event-remark">${escapeHtml(r.remark)}</span>` : ''}
+    </button>`;
 }
 
 function renderTimeline() {
@@ -420,7 +493,9 @@ function renderTimelineEvent(item) {
 
 function renderLegend(items) {
   if (!isOverallView() && !isMaintenanceView()) {
-    els.viewLegend.innerHTML = '';
+    els.viewLegend.innerHTML = `
+      <span class="legend-item purpose-legend purpose-epi"><span class="legend-dot"></span>エピ</span>
+      <span class="legend-item purpose-legend purpose-maintenance"><span class="legend-dot"></span>メンテ</span>`;
     return;
   }
   const used = ACTUAL_EQUIPMENTS.filter(eq => items.some(item => item.equipment === eq));
@@ -438,7 +513,7 @@ function renderReservationList() {
     return;
   }
   els.list.innerHTML = items.map(r => `
-    <button type="button" class="reservation-card" data-reservation-id="${escapeHtml(r.id)}" style="--event-color:${equipmentColor(r.equipment)}">
+    <button type="button" class="reservation-card ${reservationPurposeClass(r)}" data-reservation-id="${escapeHtml(r.id)}">
       <span class="card-time">${escapeHtml(r.date)} ${escapeHtml(r.start)}-${escapeHtml(r.finish)}</span>
       <span>${escapeHtml(r.name)}</span>
       ${displayPurpose(r) ? `<span>${escapeHtml(displayPurpose(r))}</span>` : ''}
@@ -483,24 +558,72 @@ function filteredReservations() {
   });
 }
 
-async function loadEmailReservations() {
+async function loadEmailReservations(options = {}) {
+  const { force = false } = options;
+
   if (!hasApi()) {
     setEmailStatus('メール内容は共有モードでのみ利用できます。', true);
     return;
   }
-  setEmailStatus('メールを読み込み中...', false);
+  if (state.emailLoading) return;
+
+  state.emailLoading = true;
+  els.emailReloadBtn.disabled = true;
+  const originalText = els.emailReloadBtn.textContent;
+  els.emailReloadBtn.textContent = '読み込み中...';
+  setEmailStatus('メールを読み込み中です。Gmailの初回取得は少し時間がかかる場合があります。', false);
+
   try {
     const result = await apiCall({
       action: 'emailList',
       emailPass: els.emailViewPass.value || '',
-    }, 15000);
-    if (!result || result.ok === false) throw new Error(result?.error || 'メール内容の読み込みに失敗しました。');
-    state.emails = normalizeEmailMessages(result.emailMessages || result.emailReservations || []);
+      limit: '120',
+      force: force ? '1' : '0',
+    }, 45000);
+
+    if (!result || result.ok === false) {
+      const message = result?.error || 'メール内容の読み込みに失敗しました。';
+      if (/不明な操作|emailList/i.test(message)) {
+        throw new Error('Apps Script側がメール表示に未対応です。apps_script_backend.gsを更新して再デプロイしてください。');
+      }
+      throw new Error(message);
+    }
+
+    const rawMessages = extractEmailMessages(result);
+    state.emails = normalizeEmailMessages(rawMessages);
+    state.emailLoaded = true;
     renderEmailList();
-    setEmailStatus(`${state.emails.length}件を読み込みました。`, false);
+
+    const versionText = result.version ? ` / Backend: ${result.version}` : '';
+    if (state.emails.length) {
+      setEmailStatus(`${state.emails.length}件を読み込みました。${versionText}`, false);
+    } else {
+      setEmailStatus(`対象メールは見つかりませんでした。Apps Scriptを公開したGoogleアカウントに対象メールが届いているか確認してください。${versionText}`, false);
+    }
   } catch (error) {
     setEmailStatus(error.message, true);
+    if (!state.emails.length) {
+      els.emailList.innerHTML = '<div class="empty-card">メールを取得できませんでした。Apps Scriptの再デプロイとGmail権限を確認してください。</div>';
+    }
+  } finally {
+    state.emailLoading = false;
+    els.emailReloadBtn.disabled = false;
+    els.emailReloadBtn.textContent = originalText;
   }
+}
+
+function extractEmailMessages(result) {
+  const candidates = [
+    result.emailMessages,
+    result.emailReservations,
+    result.emails,
+    result.messages,
+    result.data?.emailMessages,
+    result.data?.emails,
+    result.data?.messages,
+    Array.isArray(result.data) ? result.data : null,
+  ];
+  return candidates.find(Array.isArray) || [];
 }
 
 function renderEmailList() {
@@ -508,15 +631,22 @@ function renderEmailList() {
     els.emailList.innerHTML = '<div class="empty-card">「メールを読み込み」を押してください。</div>';
     return;
   }
-  els.emailList.innerHTML = state.emails.map(item => `
-    <article class="email-card">
-      <h3>${escapeHtml(item.subject || '件名なし')}</h3>
-      <div class="email-meta">${escapeHtml(item.receivedAt)} / ${escapeHtml(item.from)}</div>
-      ${item.summary ? `<p><strong>まとめ：</strong>${escapeHtml(item.summary)}</p>` : ''}
-      ${item.snippet ? `<p>${escapeHtml(item.snippet)}</p>` : ''}
-      ${item.body ? `<details><summary>本文全文を表示</summary><div class="email-body">${escapeHtml(item.body)}</div></details>` : ''}
-      ${safeHttpUrl(item.url) ? `<p><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Gmailで開く</a></p>` : ''}
-    </article>`).join('');
+
+  els.emailList.innerHTML = state.emails.map(item => {
+    const metaParts = [item.receivedAt, item.from].filter(Boolean);
+    const destination = [item.to ? `To: ${item.to}` : '', item.cc ? `Cc: ${item.cc}` : ''].filter(Boolean).join(' / ');
+
+    return `
+      <article class="email-card">
+        <h3>${escapeHtml(item.subject || '件名なし')}</h3>
+        <div class="email-meta">${escapeHtml(metaParts.join(' / '))}</div>
+        ${destination ? `<div class="email-destination">${escapeHtml(destination)}</div>` : ''}
+        ${item.summary ? `<p><strong>まとめ：</strong>${escapeHtml(item.summary)}</p>` : ''}
+        ${item.snippet ? `<p>${escapeHtml(item.snippet)}</p>` : ''}
+        ${item.body ? `<details><summary>本文全文を表示</summary><div class="email-body">${escapeHtml(item.body)}</div></details>` : ''}
+        ${safeHttpUrl(item.url) ? `<p><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Gmailで開く</a></p>` : ''}
+      </article>`;
+  }).join('');
 }
 
 function normalizeReservations(items) {
@@ -571,14 +701,17 @@ function canonicalMaintenanceType(value) {
 
 function normalizeEmailMessages(items) {
   return (Array.isArray(items) ? items : []).map(item => ({
-    emailId: String(item.emailId || item.id || ''),
-    receivedAt: String(item.receivedAt || ''),
-    from: String(item.from || ''),
-    subject: String(item.subject || ''),
-    summary: String(item.summary || ''),
-    snippet: String(item.snippet || ''),
-    body: String(item.body || ''),
-    url: String(item.url || ''),
+    emailId: String(item.emailId || item.messageId || item.id || ''),
+    threadId: String(item.threadId || ''),
+    receivedAt: String(item.receivedAt || item.date || item.timestamp || ''),
+    from: String(item.from || item.sender || ''),
+    to: String(item.to || ''),
+    cc: String(item.cc || ''),
+    subject: String(item.subject || item.title || ''),
+    summary: String(item.summary || item.digest || ''),
+    snippet: String(item.snippet || item.preview || ''),
+    body: String(item.body || item.plainBody || item.text || ''),
+    url: String(item.url || item.gmailUrl || item.link || ''),
   }));
 }
 
@@ -616,6 +749,12 @@ function displayPurpose(r) {
 
 function isMaintenanceReservation(r) {
   return r.maintenanceKind === 'maintenance' || r.maintenanceTypesArray.some(type => type !== EPI_TYPE);
+}
+
+function reservationPurposeClass(r) {
+  if (r.maintenanceKind === 'epi' || r.maintenanceTypesArray.includes(EPI_TYPE)) return 'purpose-epi';
+  if (isMaintenanceReservation(r)) return 'purpose-maintenance';
+  return 'purpose-other';
 }
 
 function isOverallView() { return state.view === OVERALL_TAB_NAME; }
