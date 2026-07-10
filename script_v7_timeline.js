@@ -1,5 +1,7 @@
 'use strict';
 
+const APP_VERSION = '20260710-v9-runtime-fix';
+
 const OVERALL_TAB_NAME = '全体表示';
 const MAINTENANCE_TAB_NAME = 'メンテ情報';
 const EMAIL_CONTENT_TAB_NAME = 'メール内容';
@@ -11,7 +13,7 @@ const ACTUAL_EQUIPMENTS = Array.from(new Set(
     .map(v => String(v || '').trim())
     .filter(Boolean)
 ));
-const MAINTENANCE_TYPES = Array.from(new Set(
+const ACTIVE_MAINTENANCE_TYPES = Array.from(new Set(
   (typeof MAINTENANCE_DETAIL_TYPES !== 'undefined' && Array.isArray(MAINTENANCE_DETAIL_TYPES)
     ? MAINTENANCE_DETAIL_TYPES
     : DEFAULT_MAINTENANCE_TYPES)
@@ -546,7 +548,7 @@ function normalizeMaintenanceTypes(value) {
   const text = Array.isArray(value) ? value.join('、') : String(value || '');
   const found = [];
   if (/エピ/i.test(text)) found.push(EPI_TYPE);
-  for (const type of MAINTENANCE_TYPES) {
+  for (const type of ACTIVE_MAINTENANCE_TYPES) {
     if (text.includes(type)) found.push(type);
   }
   if (/原料(交換)?/.test(text) && !found.includes('原料交換')) found.push('原料交換');
