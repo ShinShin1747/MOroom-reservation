@@ -16,8 +16,3 @@ const MAINTENANCE_DETAIL_TYPES = [
   "除害停止",
   "定常メンテ"
 ];
-
-const MAINTENANCE_TYPES = [
-  "エピ",
-  ...MAINTENANCE_DETAIL_TYPES
-];

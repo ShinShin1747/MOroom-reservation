@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#183153">
+  <link rel="preconnect" href="https://script.google.com">
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
   <title>装置予約システム</title>
-  <link rel="stylesheet" href="style_v7_timeline.css?v=v7-final-fix-20260710-1">
+  <link rel="stylesheet" href="style_v7_timeline.css?v=20260710-v8-oldnames">
 </head>
 <body>
   <header class="site-header">
@@ -13,32 +16,40 @@
       <h1>装置予約システム</h1>
       <p class="subtitle">MOVPE室用 予約サイト</p>
     </div>
-    <div id="status" class="status">読み込み中...</div>
+    <div id="status" class="status" aria-live="polite">起動中...</div>
   </header>
 
   <main class="layout">
-    <section id="mainViewPanel" class="panel full">
-      <div id="equipmentTabs" class="tabs"></div>
+    <section id="mainViewPanel" class="panel full main-view-panel">
+      <div id="equipmentTabs" class="tabs" aria-label="表示切替"></div>
+
       <div id="calendarToolbar" class="toolbar">
-        <label class="month-jump" for="monthPicker"><span>月選択</span><input id="monthPicker" type="month"></label>
+        <label class="month-jump" for="monthPicker">
+          <span>月選択</span>
+          <input id="monthPicker" type="month">
+        </label>
         <div class="toolbar-actions">
           <button type="button" id="prevWeek">← 前週</button>
           <button type="button" id="todayBtn">今週</button>
           <button type="button" id="nextWeek">次週 →</button>
+          <button type="button" id="reloadBtn" class="reload-button">再読み込み</button>
         </div>
       </div>
-      <h2 id="weekTitle">YYYY-MM-DD ~ YYYY-MM-DD</h2>
-      <div id="calendarWrap" class="calendar-wrap">
-        <table id="calendarTable" class="calendar">
-          <thead></thead>
-          <tbody></tbody>
-        </table>
+
+      <div class="calendar-title-row">
+        <h2 id="weekTitle">週間予約表</h2>
+        <div id="viewLegend" class="view-legend"></div>
       </div>
+
+      <div id="calendarWrap" class="calendar-wrap" tabindex="0" aria-label="週間予約表">
+        <div id="timeline" class="timeline"></div>
+      </div>
+
       <div id="emailContentView" class="email-content-view is-hidden">
         <div class="list-header email-content-header">
           <div>
             <h2>メール内容</h2>
-            <p class="hint">Gmailで <strong>users_movpe7@googlegroups.com</strong> 宛てに届いたメールを読み取り、本文内容をまとめて表示します。予約フォームへのコピーや自動登録はしません。</p>
+            <p class="hint">Gmailで users_movpe7@googlegroups.com 宛てに届いたメール内容を表示します。</p>
           </div>
           <div class="email-toolbar">
             <label class="email-pass-label">メール表示パスワード
@@ -54,7 +65,8 @@
 
     <section id="formPanel" class="panel">
       <h2>予約フォーム</h2>
-      <p id="message" class="message">メッセージ：予約内容を入力してください。</p>
+      <p id="message" class="message" aria-live="polite">メッセージ：予約内容を入力してください。</p>
+
       <form id="reservationForm">
         <label>操作*
           <select id="mode" required>
@@ -73,7 +85,7 @@
         </label>
 
         <label>名前*
-          <input id="name" type="text" required>
+          <input id="name" type="text" autocomplete="name" required>
         </label>
 
         <label>日付*
@@ -91,13 +103,17 @@
 
         <fieldset class="checkbox-panel">
           <legend>使用目的</legend>
-          <div class="maintenance-step">
-            <div class="field-title">メンテ / エピを選択</div>
-            <div class="maintenance-kind-grid">
-              <label class="check-option"><input type="radio" name="maintenanceKind" value="maintenance"><span>メンテ</span></label>
-              <label class="check-option"><input type="radio" name="maintenanceKind" value="epi"><span>エピ</span></label>
-            </div>
+          <div class="maintenance-kind-grid">
+            <label class="check-option">
+              <input type="radio" name="maintenanceKind" value="maintenance">
+              <span>メンテ</span>
+            </label>
+            <label class="check-option">
+              <input type="radio" name="maintenanceKind" value="epi">
+              <span>エピ</span>
+            </label>
           </div>
+
           <div id="maintenanceDetailPanel" class="maintenance-detail-panel is-hidden">
             <div class="field-title">メンテ内容</div>
             <div class="check-grid">
@@ -107,7 +123,7 @@
               <label class="check-option"><input type="checkbox" name="maintenanceDetails" value="定常メンテ"><span>定常メンテ</span></label>
             </div>
           </div>
-          <span class="field-note">使用目的として必ず「メンテ」または「エピ」を選択してください。メンテを選んだ場合は、下の4項目から1つ以上選択してください。メンテ情報タブには、メンテとして登録された内容だけが装置別にまとめて表示されます。エピは通常の装置予約として表示され、メンテ情報タブには表示されません。</span>
+          <span class="field-note">メンテまたはエピを選択してください。メンテの場合は内容を1つ以上選択してください。</span>
         </fieldset>
 
         <label>備考
@@ -116,7 +132,7 @@
 
         <label>パスワード*
           <input id="pass" type="password" required>
-          <span class="field-note">予約時に決めたパスワードを、あとで変更・削除するときにも使います。</span>
+          <span class="field-note">変更・削除時にも同じパスワードを使用します。</span>
         </label>
 
         <button class="primary" type="submit">送信</button>
@@ -126,19 +142,18 @@
     <section id="reservationPanel" class="panel">
       <div class="list-header">
         <h2>予約一覧</h2>
-        <button type="button" id="reloadBtn">再読み込み</button>
       </div>
       <div id="reservationList" class="reservation-list"></div>
-      <p class="hint">予約をクリックすると、予約変更・予約削除用にフォームへ反映されます。</p>
+      <p class="hint">予約をクリックすると、変更・削除用にフォームへ反映されます。</p>
     </section>
   </main>
 
   <footer>
-    <span>データ保存方式：<strong id="dataMode">ローカル</strong></span>
-    <span>全員で共有する場合は、<code>config.js</code> にGoogle Apps ScriptのURLを設定してください。</span>
+    <span>データ保存方式：<strong id="dataMode">確認中</strong></span>
+    <span>表示はキャッシュを先に使い、共有データを裏で更新します。</span>
   </footer>
 
-  <script src="config.js?v=v7-final-fix-20260710-1"></script>
-  <script src="script_v7_timeline.js?v=v7-final-fix-20260710-1"></script>
+  <script src="config.js?v=20260710-v8"></script>
+  <script src="script_v7_timeline.js?v=20260710-v8-oldnames" defer></script>
 </body>
 </html>
