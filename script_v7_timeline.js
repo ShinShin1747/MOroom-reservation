@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '20260713-v14-email-daily';
+const APP_VERSION = '20260713-v16-facility-maintenance-view';
 
 const OVERALL_TAB_NAME = '全体表示';
 const MAINTENANCE_TAB_NAME = 'メンテ情報';
@@ -369,6 +369,7 @@ function renderTimeline() {
   const titlePrefix = isOverallView() ? '全体表示' : isMaintenanceView() ? 'メンテ情報' : state.view;
   els.weekTitle.textContent = `${titlePrefix}：${formatDate(dates[0])} ～ ${formatDate(dates[6])}`;
   renderLegend(items);
+  const facilitySummary = isMaintenanceView() ? renderFacilityMaintenanceSummary(dates[0], dates[6]) : '';
 
   const tracks = dates.map(date => {
     const key = formatDate(date);
@@ -401,6 +402,7 @@ function renderTimeline() {
       : 'この装置の予約はありません。';
 
   els.timeline.innerHTML = `
+    ${facilitySummary}
     <div class="timeline-header">
       <div class="timeline-corner">時間</div>
       ${dayHeads}
@@ -418,6 +420,13 @@ function renderTimeline() {
   els.timeline.querySelectorAll('[data-reservation-id]').forEach(button => {
     button.addEventListener('click', () => fillForm(button.dataset.reservationId));
   });
+  els.timeline.querySelectorAll('[data-maintenance-facility-id]').forEach(button => {
+    button.addEventListener('click', () => {
+      const id = button.dataset.maintenanceFacilityId;
+      activateSharedView('facilities');
+      fillFacilityForm(id);
+    });
+  });
 
   if (!state.initialScrollDone) {
     requestAnimationFrame(() => {
@@ -425,6 +434,55 @@ function renderTimeline() {
       state.initialScrollDone = true;
     });
   }
+}
+
+
+function facilitySchedulesForWeek(startDate, endDate) {
+  if (typeof sharedState === 'undefined' || !Array.isArray(sharedState.facilities)) return [];
+  const start = formatDate(startDate);
+  const end = formatDate(endDate);
+  return sharedState.facilities
+    .filter(item => item.startDate <= end && item.endDate >= start)
+    .sort((a, b) =>
+      a.startDate.localeCompare(b.startDate) ||
+      (a.startTime || '99:99').localeCompare(b.startTime || '99:99') ||
+      a.title.localeCompare(b.title)
+    );
+}
+
+function renderFacilityMaintenanceSummary(startDate, endDate) {
+  const facilities = facilitySchedulesForWeek(startDate, endDate);
+  const cards = facilities.length
+    ? facilities.map(item => {
+        const dateText = item.startDate === item.endDate
+          ? item.startDate
+          : `${item.startDate} ～ ${item.endDate}`;
+        const timeText = item.startTime
+          ? `${item.startTime}${item.finishTime ? `-${item.finishTime}` : ''}`
+          : '時間未指定';
+        const detail = [item.content, item.poster ? `投稿者：${item.poster}` : ''].filter(Boolean).join(' / ');
+        return `
+          <button type="button"
+            class="maintenance-facility-card category-${facilityCategoryClass(item.category)}"
+            data-maintenance-facility-id="${escapeHtml(item.id)}"
+            title="${escapeHtml(`${item.category} / ${item.title} / ${item.target} / ${dateText} ${timeText}`)}">
+            <span class="maintenance-facility-category">${escapeHtml(item.category)}</span>
+            <strong class="maintenance-facility-title">${escapeHtml(item.title)}</strong>
+            <span class="maintenance-facility-date">${escapeHtml(dateText)}　${escapeHtml(timeText)}</span>
+            <span class="maintenance-facility-target">対象：${escapeHtml(item.target || '未指定')}</span>
+            ${detail ? `<span class="maintenance-facility-content">${escapeHtml(detail)}</span>` : ''}
+          </button>`;
+      }).join('')
+    : '<div class="maintenance-facility-empty">この週の付帯設備メンテ・ガス交換予定はありません。</div>';
+
+  return `
+    <section class="maintenance-facility-summary" aria-label="付帯設備メンテ・ガス交換予定">
+      <div class="maintenance-facility-heading">
+        <strong>付帯設備メンテ・ガス交換予定</strong>
+        <span>${facilities.length}件</span>
+      </div>
+      <div class="maintenance-facility-list">${cards}</div>
+    </section>`;
 }
 
 function layoutOverlaps(items) {
@@ -505,10 +563,15 @@ function renderLegend(items) {
     return;
   }
   const used = ACTUAL_EQUIPMENTS.filter(eq => items.some(item => item.equipment === eq));
-  els.viewLegend.innerHTML = used.map(eq => `
+  const equipmentLegend = used.map(eq => `
     <span class="legend-item" style="--event-color:${equipmentColor(eq)}">
       <span class="legend-dot"></span>${escapeHtml(eq)}
     </span>`).join('');
+  const facilityLegend = isMaintenanceView() && facilitySchedulesForWeek(state.weekStart, addDays(state.weekStart, 6)).length
+    ? `<span class="legend-item facility-maintenance-legend"><span class="legend-dot"></span>付帯設備メンテ</span>
+       <span class="legend-item facility-gas-legend"><span class="legend-dot"></span>ガス交換</span>`
+    : '';
+  els.viewLegend.innerHTML = equipmentLegend + facilityLegend;
 }
 
 function renderReservationList() {
@@ -605,7 +668,7 @@ async function loadEmailReservations(options = {}) {
     if (state.emails.length) {
       setEmailStatus(`${state.emails.length}件を読み込みました。${versionText}`, false);
     } else {
-      setEmailStatus(`対象メールは見つかりませんでした。Apps Scriptを公開したGoogleアカウントに対象メールが届いているか確認してください。${versionText}`, false);
+      setEmailStatus(`件名に「MO連絡網」を含む対象メールは見つかりませんでした。Apps Scriptを公開したGoogleアカウントに対象メールが届いているか確認してください。${versionText}`, false);
     }
   } catch (error) {
     setEmailStatus(error.message, true);
@@ -1281,6 +1344,9 @@ function renderSharedInformation() {
   renderImportantNoticeBanner();
   renderNoticeList();
   renderFacilityCalendar();
+  if (typeof isMaintenanceView === 'function' && isMaintenanceView() && typeof renderAll === 'function') {
+    renderAll();
+  }
 }
 
 function renderImportantNoticeBanner() {

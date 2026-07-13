@@ -1055,3 +1055,108 @@ body.shared-info-active .main-view-panel {
     max-height: 55vh;
   }
 }
+
+/* v16: show facility maintenance and gas exchange schedules in the maintenance tab */
+.maintenance-facility-summary {
+  margin: 0 0 12px;
+  border: 1px solid #d6dde8;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+.maintenance-facility-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f4f7fb;
+  border-bottom: 1px solid #d6dde8;
+}
+.maintenance-facility-heading strong {
+  color: #24364b;
+}
+.maintenance-facility-heading span {
+  min-width: 2.2em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e5ebf3;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+.maintenance-facility-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+  padding: 10px;
+}
+.maintenance-facility-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d4dbe5;
+  border-left: 5px solid #8a4d00;
+  border-radius: 9px;
+  background: #fffaf3;
+  text-align: left;
+  cursor: pointer;
+}
+.maintenance-facility-card.category-gas {
+  border-left-color: #1769aa;
+  background: #f2f8fd;
+}
+.maintenance-facility-card:hover,
+.maintenance-facility-card:focus-visible {
+  box-shadow: 0 3px 10px rgba(29, 45, 66, 0.16);
+  transform: translateY(-1px);
+}
+.maintenance-facility-category {
+  grid-row: 1 / span 2;
+  align-self: start;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #f0d8b8;
+  color: #6c3a00;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.maintenance-facility-card.category-gas .maintenance-facility-category {
+  background: #d9eaf8;
+  color: #0c4f84;
+}
+.maintenance-facility-title {
+  min-width: 0;
+  color: #1f2d3d;
+  overflow-wrap: anywhere;
+}
+.maintenance-facility-date,
+.maintenance-facility-target,
+.maintenance-facility-content {
+  grid-column: 1 / -1;
+  color: #4b5968;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.maintenance-facility-content {
+  padding-top: 3px;
+  border-top: 1px dashed #d6dde8;
+  white-space: normal;
+}
+.maintenance-facility-empty {
+  grid-column: 1 / -1;
+  padding: 12px;
+  color: #6d7784;
+  text-align: center;
+}
+.facility-maintenance-legend .legend-dot { background: #8a4d00; }
+.facility-gas-legend .legend-dot { background: #1769aa; }
+
+@media (max-width: 700px) {
+  .maintenance-facility-list { grid-template-columns: 1fr; }
+  .maintenance-facility-card { grid-template-columns: 1fr; }
+  .maintenance-facility-category { grid-row: auto; justify-self: start; }
+}
