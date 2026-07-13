@@ -959,3 +959,810 @@ function setStatus(text, kind) {
   els.status.textContent = text;
   els.status.className = `status ${kind || ''}`.trim();
 }
+
+
+/* ==========================================================================
+   管理室連絡・付帯設備メンテ／ガス交換 月間予定
+   ========================================================================== */
+
+'use strict';
+
+const SHARED_ADMIN_TAB_NAME = '管理室からの連絡';
+const SHARED_FACILITY_TAB_NAME = '付帯設備メンテ・ガス交換';
+const SHARED_CACHE_KEY = 'moroom_shared_information_cache_v1';
+const SHARED_LOCAL_KEY = 'moroom_shared_information_local_v1';
+const SHARED_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+
+const sharedState = {
+  view: '',
+  notices: [],
+  facilities: [],
+  month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  jsonpSeq: 0,
+  loading: false,
+  refreshTimer: null,
+};
+
+const sharedEls = {};
+
+document.addEventListener('DOMContentLoaded', initSharedInformation);
+
+function initSharedInformation() {
+  mapSharedElements();
+  if (!sharedEls.tabs || !sharedEls.noticeView || !sharedEls.facilityView) return;
+
+  sharedEls.noticeForm.noValidate = true;
+  sharedEls.facilityForm.noValidate = true;
+
+  appendSharedTabs();
+  observeSharedTabs();
+  bindSharedEvents();
+  resetNoticeForm();
+  resetFacilityForm();
+
+  const cached = readSharedCache();
+  if (cached) {
+    sharedState.notices = normalizeNotices(cached.notices || []);
+    sharedState.facilities = normalizeFacilities(cached.facilities || []);
+    renderSharedInformation();
+    setSharedStatus('前回データを表示中・共有データを更新中', false);
+  } else {
+    renderSharedInformation();
+  }
+
+  window.setTimeout(() => loadSharedInformation({ background: Boolean(cached) }), 0);
+  sharedState.refreshTimer = window.setInterval(
+    () => loadSharedInformation({ background: true }),
+    SHARED_REFRESH_INTERVAL_MS
+  );
+}
+
+function mapSharedElements() {
+  Object.assign(sharedEls, {
+    tabs: document.getElementById('equipmentTabs'),
+    banner: document.getElementById('importantNoticeBanner'),
+
+    noticeView: document.getElementById('adminNoticeView'),
+    noticeReload: document.getElementById('adminNoticeReloadBtn'),
+    noticeStatus: document.getElementById('adminNoticeStatus'),
+    noticeList: document.getElementById('adminNoticeList'),
+    noticeForm: document.getElementById('adminNoticeForm'),
+    noticeMode: document.getElementById('adminNoticeMode'),
+    noticeId: document.getElementById('adminNoticeId'),
+    noticeTitle: document.getElementById('adminNoticeTitleInput'),
+    noticeContent: document.getElementById('adminNoticeContent'),
+    noticeTargetType: document.getElementById('adminNoticeTargetType'),
+    noticeTargetDetailLabel: document.getElementById('adminNoticeTargetDetailLabel'),
+    noticeTargetDetail: document.getElementById('adminNoticeTargetDetail'),
+    noticePriority: document.getElementById('adminNoticePriority'),
+    noticeStartDate: document.getElementById('adminNoticeStartDate'),
+    noticeEndDate: document.getElementById('adminNoticeEndDate'),
+    noticePoster: document.getElementById('adminNoticePoster'),
+    noticePass: document.getElementById('adminNoticePass'),
+    noticeReset: document.getElementById('adminNoticeResetBtn'),
+
+    facilityView: document.getElementById('facilityScheduleView'),
+    facilityReload: document.getElementById('facilityReloadBtn'),
+    facilityPrevMonth: document.getElementById('facilityPrevMonth'),
+    facilityThisMonth: document.getElementById('facilityThisMonth'),
+    facilityMonthPicker: document.getElementById('facilityMonthPicker'),
+    facilityNextMonth: document.getElementById('facilityNextMonth'),
+    facilityStatus: document.getElementById('facilityStatus'),
+    facilityMonthTitle: document.getElementById('facilityMonthTitle'),
+    facilityCalendar: document.getElementById('facilityCalendar'),
+    facilityForm: document.getElementById('facilityForm'),
+    facilityMode: document.getElementById('facilityMode'),
+    facilityId: document.getElementById('facilityId'),
+    facilityCategory: document.getElementById('facilityCategory'),
+    facilityTitle: document.getElementById('facilityTitleInput'),
+    facilityTarget: document.getElementById('facilityTarget'),
+    facilityStartDate: document.getElementById('facilityStartDate'),
+    facilityEndDate: document.getElementById('facilityEndDate'),
+    facilityStartTime: document.getElementById('facilityStartTime'),
+    facilityFinishTime: document.getElementById('facilityFinishTime'),
+    facilityContent: document.getElementById('facilityContent'),
+    facilityPoster: document.getElementById('facilityPoster'),
+    facilityPass: document.getElementById('facilityPass'),
+    facilityReset: document.getElementById('facilityResetBtn'),
+  });
+}
+
+function appendSharedTabs() {
+  if (sharedEls.tabs.querySelector('[data-shared-view]')) return;
+
+  const noticeButton = document.createElement('button');
+  noticeButton.type = 'button';
+  noticeButton.className = 'admin-notice-tab';
+  noticeButton.dataset.sharedView = 'notices';
+  noticeButton.textContent = SHARED_ADMIN_TAB_NAME;
+  if (sharedState.view === 'notices') noticeButton.classList.add('active');
+
+  const facilityButton = document.createElement('button');
+  facilityButton.type = 'button';
+  facilityButton.className = 'facility-schedule-tab';
+  facilityButton.dataset.sharedView = 'facilities';
+  facilityButton.textContent = SHARED_FACILITY_TAB_NAME;
+  if (sharedState.view === 'facilities') facilityButton.classList.add('active');
+
+  sharedEls.tabs.append(noticeButton, facilityButton);
+}
+
+
+function observeSharedTabs() {
+  const observer = new MutationObserver(() => {
+    if (!sharedEls.tabs.querySelector('[data-shared-view]')) appendSharedTabs();
+  });
+  observer.observe(sharedEls.tabs, { childList: true });
+}
+
+function bindSharedEvents() {
+  sharedEls.tabs.addEventListener('click', event => {
+    const sharedButton = event.target.closest('[data-shared-view]');
+    if (sharedButton) {
+      activateSharedView(sharedButton.dataset.sharedView);
+      return;
+    }
+
+    const originalButton = event.target.closest('[data-view]');
+    if (originalButton) deactivateSharedView();
+  });
+
+  sharedEls.noticeReload.addEventListener('click', () => loadSharedInformation({ background: false }));
+  sharedEls.facilityReload.addEventListener('click', () => loadSharedInformation({ background: false }));
+  sharedEls.noticeForm.addEventListener('submit', submitNoticeForm);
+  sharedEls.facilityForm.addEventListener('submit', submitFacilityForm);
+  sharedEls.noticeReset.addEventListener('click', resetNoticeForm);
+  sharedEls.facilityReset.addEventListener('click', resetFacilityForm);
+  sharedEls.noticeTargetType.addEventListener('change', updateNoticeTargetDetailVisibility);
+
+  sharedEls.noticeList.addEventListener('click', event => {
+    const card = event.target.closest('[data-notice-id]');
+    if (card) fillNoticeForm(card.dataset.noticeId);
+  });
+
+  sharedEls.facilityCalendar.addEventListener('click', event => {
+    const item = event.target.closest('[data-facility-id]');
+    if (item) fillFacilityForm(item.dataset.facilityId);
+  });
+
+  sharedEls.facilityPrevMonth.addEventListener('click', () => moveFacilityMonth(-1));
+  sharedEls.facilityNextMonth.addEventListener('click', () => moveFacilityMonth(1));
+  sharedEls.facilityThisMonth.addEventListener('click', () => {
+    const now = new Date();
+    sharedState.month = new Date(now.getFullYear(), now.getMonth(), 1);
+    renderFacilityCalendar();
+  });
+  sharedEls.facilityMonthPicker.addEventListener('change', () => {
+    const match = String(sharedEls.facilityMonthPicker.value || '').match(/^(\d{4})-(\d{2})$/);
+    if (!match) return;
+    sharedState.month = new Date(Number(match[1]), Number(match[2]) - 1, 1);
+    renderFacilityCalendar();
+  });
+}
+
+function activateSharedView(view) {
+  sharedState.view = view;
+  document.body.classList.add('shared-info-active');
+  sharedEls.noticeView.classList.toggle('is-hidden', view !== 'notices');
+  sharedEls.facilityView.classList.toggle('is-hidden', view !== 'facilities');
+
+  sharedEls.tabs.querySelectorAll('button').forEach(button => {
+    const active = button.dataset.sharedView === view;
+    button.classList.toggle('active', active);
+    if (active) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
+
+  if (view === 'notices') renderNoticeList();
+  if (view === 'facilities') renderFacilityCalendar();
+}
+
+function deactivateSharedView() {
+  sharedState.view = '';
+  document.body.classList.remove('shared-info-active');
+  sharedEls.noticeView.classList.add('is-hidden');
+  sharedEls.facilityView.classList.add('is-hidden');
+  sharedEls.tabs.querySelectorAll('[data-shared-view]').forEach(button => {
+    button.classList.remove('active');
+    button.removeAttribute('aria-current');
+  });
+}
+
+async function loadSharedInformation(options = {}) {
+  const background = Boolean(options.background);
+  if (sharedState.loading) return;
+  sharedState.loading = true;
+
+  if (!background) setSharedStatus('共有情報を読み込み中...', false);
+
+  try {
+    let result;
+    if (hasSharedApi()) {
+      result = await sharedApiCall({ action: 'sharedList' }, 15000);
+    } else {
+      result = readSharedLocalStore();
+    }
+
+    if (!result || result.ok === false) {
+      throw new Error((result && result.error) || '共有情報の読み込みに失敗しました。');
+    }
+
+    sharedState.notices = normalizeNotices(result.notices || []);
+    sharedState.facilities = normalizeFacilities(result.facilities || []);
+    writeSharedCache({ notices: sharedState.notices, facilities: sharedState.facilities });
+    renderSharedInformation();
+    setSharedStatus(
+      `読み込み完了（連絡 ${sharedState.notices.length}件／予定 ${sharedState.facilities.length}件）`,
+      false
+    );
+  } catch (error) {
+    renderSharedInformation();
+    setSharedStatus(error.message, true);
+  } finally {
+    sharedState.loading = false;
+  }
+}
+
+function renderSharedInformation() {
+  renderImportantNoticeBanner();
+  renderNoticeList();
+  renderFacilityCalendar();
+}
+
+function renderImportantNoticeBanner() {
+  const today = formatLocalDate(new Date());
+  const active = sharedState.notices
+    .filter(notice => (
+      ['重要', '緊急'].includes(notice.priority) &&
+      notice.startDate <= today &&
+      notice.endDate >= today
+    ))
+    .sort((a, b) => {
+      const rank = { 緊急: 0, 重要: 1 };
+      return (rank[a.priority] - rank[b.priority]) || b.startDate.localeCompare(a.startDate);
+    });
+
+  if (!active.length) {
+    sharedEls.banner.classList.add('is-hidden');
+    sharedEls.banner.innerHTML = '';
+    return;
+  }
+
+  sharedEls.banner.innerHTML = `
+    <div class="important-notice-heading">管理室からの重要連絡</div>
+    <div class="important-notice-items">
+      ${active.map(notice => `
+        <article class="important-notice-item priority-${priorityClass(notice.priority)}">
+          <div class="important-notice-meta">
+            <span class="priority-badge">${escapeSharedHtml(notice.priority)}</span>
+            <span>${escapeSharedHtml(noticeTargetText(notice))}</span>
+            <span>${escapeSharedHtml(notice.startDate)} ～ ${escapeSharedHtml(notice.endDate)}</span>
+          </div>
+          <strong>${escapeSharedHtml(notice.title)}</strong>
+          <p>${formatMultiline(notice.content)}</p>
+          <small>投稿者：${escapeSharedHtml(notice.poster)}</small>
+        </article>
+      `).join('')}
+    </div>`;
+  sharedEls.banner.classList.remove('is-hidden');
+}
+
+function renderNoticeList() {
+  const today = formatLocalDate(new Date());
+  const notices = [...sharedState.notices].sort((a, b) => {
+    const aActive = a.startDate <= today && a.endDate >= today ? 0 : a.startDate > today ? 1 : 2;
+    const bActive = b.startDate <= today && b.endDate >= today ? 0 : b.startDate > today ? 1 : 2;
+    const priorityRank = { 緊急: 0, 重要: 1, 通常: 2 };
+    return (aActive - bActive) ||
+      (priorityRank[a.priority] - priorityRank[b.priority]) ||
+      b.startDate.localeCompare(a.startDate);
+  });
+
+  if (!notices.length) {
+    sharedEls.noticeList.innerHTML = '<div class="shared-empty">登録されている管理室連絡はありません。</div>';
+    return;
+  }
+
+  sharedEls.noticeList.innerHTML = notices.map(notice => {
+    const state = notice.startDate > today ? '掲載予定' : notice.endDate < today ? '掲載終了' : '掲載中';
+    return `
+      <button type="button" class="shared-card notice-card priority-${priorityClass(notice.priority)}" data-notice-id="${escapeSharedHtml(notice.id)}">
+        <span class="shared-card-topline">
+          <span class="priority-badge">${escapeSharedHtml(notice.priority)}</span>
+          <span class="publication-state">${state}</span>
+        </span>
+        <strong>${escapeSharedHtml(notice.title)}</strong>
+        <span class="shared-card-target">対象：${escapeSharedHtml(noticeTargetText(notice))}</span>
+        <span class="shared-card-period">${escapeSharedHtml(notice.startDate)} ～ ${escapeSharedHtml(notice.endDate)}</span>
+        <span class="shared-card-content">${formatMultiline(notice.content)}</span>
+        <small>投稿者：${escapeSharedHtml(notice.poster)}</small>
+      </button>`;
+  }).join('');
+}
+
+function renderFacilityCalendar() {
+  if (!sharedEls.facilityCalendar) return;
+
+  const year = sharedState.month.getFullYear();
+  const month = sharedState.month.getMonth();
+  sharedEls.facilityMonthPicker.value = `${year}-${String(month + 1).padStart(2, '0')}`;
+  sharedEls.facilityMonthTitle.textContent = `${year}年${month + 1}月`;
+
+  const first = new Date(year, month, 1);
+  const gridStart = addLocalDays(first, -first.getDay());
+  const today = formatLocalDate(new Date());
+  const weekdayHeads = ['日', '月', '火', '水', '木', '金', '土']
+    .map(day => `<div class="facility-weekday">${day}</div>`)
+    .join('');
+
+  const cells = Array.from({ length: 42 }, (_, index) => {
+    const date = addLocalDays(gridStart, index);
+    const key = formatLocalDate(date);
+    const isOtherMonth = date.getMonth() !== month;
+    const dayItems = sharedState.facilities
+      .filter(item => item.startDate <= key && item.endDate >= key)
+      .sort((a, b) => (a.startTime || '99:99').localeCompare(b.startTime || '99:99') || a.title.localeCompare(b.title));
+
+    const itemsHtml = dayItems.map(item => {
+      const time = item.startTime
+        ? `${item.startTime}${item.finishTime ? `-${item.finishTime}` : ''}`
+        : '';
+      return `
+        <button type="button" class="facility-event category-${facilityCategoryClass(item.category)}"
+          data-facility-id="${escapeSharedHtml(item.id)}"
+          title="${escapeSharedHtml(`${item.category} / ${item.title} / ${item.target}`)}">
+          ${time ? `<span class="facility-event-time">${escapeSharedHtml(time)}</span>` : ''}
+          <span class="facility-event-title">${escapeSharedHtml(item.title)}</span>
+          <span class="facility-event-target">${escapeSharedHtml(item.target)}</span>
+        </button>`;
+    }).join('');
+
+    return `
+      <div class="facility-day${isOtherMonth ? ' other-month' : ''}${key === today ? ' today' : ''}">
+        <div class="facility-date-number">${date.getDate()}</div>
+        <div class="facility-day-events">${itemsHtml}</div>
+      </div>`;
+  }).join('');
+
+  sharedEls.facilityCalendar.innerHTML = weekdayHeads + cells;
+}
+
+async function submitNoticeForm(event) {
+  event.preventDefault();
+  const payload = getNoticePayload();
+  const error = validateNoticePayload(payload);
+  if (error) {
+    setNoticeMessage(error, true);
+    return;
+  }
+
+  try {
+    setNoticeMessage('保存中...', false);
+    const result = hasSharedApi()
+      ? await sharedApiCall(payload, 15000)
+      : localSharedAction(payload);
+    if (!result || result.ok === false) throw new Error((result && result.error) || '保存に失敗しました。');
+    setNoticeMessage(result.message || '保存しました。', false);
+    resetNoticeForm();
+    await loadSharedInformation({ background: true });
+  } catch (saveError) {
+    setNoticeMessage(saveError.message, true);
+  }
+}
+
+async function submitFacilityForm(event) {
+  event.preventDefault();
+  const payload = getFacilityPayload();
+  const error = validateFacilityPayload(payload);
+  if (error) {
+    setFacilityMessage(error, true);
+    return;
+  }
+
+  try {
+    setFacilityMessage('保存中...', false);
+    const result = hasSharedApi()
+      ? await sharedApiCall(payload, 15000)
+      : localSharedAction(payload);
+    if (!result || result.ok === false) throw new Error((result && result.error) || '保存に失敗しました。');
+    setFacilityMessage(result.message || '保存しました。', false);
+    resetFacilityForm();
+    await loadSharedInformation({ background: true });
+  } catch (saveError) {
+    setFacilityMessage(saveError.message, true);
+  }
+}
+
+function getNoticePayload() {
+  const mode = sharedEls.noticeMode.value;
+  return {
+    action: `notice${capitalizeMode(mode)}`,
+    id: sharedEls.noticeId.value.trim(),
+    title: sharedEls.noticeTitle.value.trim(),
+    content: sharedEls.noticeContent.value.trim(),
+    targetType: sharedEls.noticeTargetType.value,
+    targetDetail: sharedEls.noticeTargetType.value === '全体' ? '' : sharedEls.noticeTargetDetail.value.trim(),
+    priority: sharedEls.noticePriority.value,
+    startDate: sharedEls.noticeStartDate.value,
+    endDate: sharedEls.noticeEndDate.value,
+    poster: sharedEls.noticePoster.value.trim(),
+    pass: sharedEls.noticePass.value,
+  };
+}
+
+function getFacilityPayload() {
+  const mode = sharedEls.facilityMode.value;
+  return {
+    action: `facility${capitalizeMode(mode)}`,
+    id: sharedEls.facilityId.value.trim(),
+    category: sharedEls.facilityCategory.value,
+    title: sharedEls.facilityTitle.value.trim(),
+    target: sharedEls.facilityTarget.value.trim(),
+    startDate: sharedEls.facilityStartDate.value,
+    endDate: sharedEls.facilityEndDate.value,
+    startTime: sharedEls.facilityStartTime.value,
+    finishTime: sharedEls.facilityFinishTime.value,
+    content: sharedEls.facilityContent.value.trim(),
+    poster: sharedEls.facilityPoster.value.trim(),
+    pass: sharedEls.facilityPass.value,
+  };
+}
+
+function validateNoticePayload(payload) {
+  const deleting = payload.action === 'noticeDelete';
+  if (deleting) {
+    if (!payload.id || !payload.pass) return '削除する連絡を選択し、管理パスワードを入力してください。';
+    return '';
+  }
+  if (payload.action === 'noticeEdit' && !payload.id) return '変更する連絡を一覧から選択してください。';
+  if (!payload.title || !payload.content || !payload.targetType || !payload.priority ||
+      !payload.startDate || !payload.endDate || !payload.poster || !payload.pass) {
+    return '必須項目を入力してください。';
+  }
+  if (payload.targetType !== '全体' && !payload.targetDetail) return '対象の詳細を入力してください。';
+  if (payload.startDate > payload.endDate) return '掲載終了日は掲載開始日以降にしてください。';
+  return '';
+}
+
+function validateFacilityPayload(payload) {
+  const deleting = payload.action === 'facilityDelete';
+  if (deleting) {
+    if (!payload.id || !payload.pass) return '削除する予定を選択し、管理パスワードを入力してください。';
+    return '';
+  }
+  if (payload.action === 'facilityEdit' && !payload.id) return '変更する予定を月間表から選択してください。';
+  if (!payload.category || !payload.title || !payload.target || !payload.startDate ||
+      !payload.endDate || !payload.poster || !payload.pass) {
+    return '必須項目を入力してください。';
+  }
+  if (payload.startDate > payload.endDate) return '終了日は開始日以降にしてください。';
+  if (Boolean(payload.startTime) !== Boolean(payload.finishTime)) return '時刻を入力する場合は、開始時刻と終了時刻の両方を入力してください。';
+  if (payload.startTime && payload.startDate === payload.endDate && payload.startTime >= payload.finishTime) {
+    return '終了時刻は開始時刻より後にしてください。';
+  }
+  return '';
+}
+
+function fillNoticeForm(id) {
+  const notice = sharedState.notices.find(item => item.id === id);
+  if (!notice) return;
+  sharedEls.noticeMode.value = 'edit';
+  sharedEls.noticeId.value = notice.id;
+  sharedEls.noticeTitle.value = notice.title;
+  sharedEls.noticeContent.value = notice.content;
+  sharedEls.noticeTargetType.value = notice.targetType;
+  sharedEls.noticeTargetDetail.value = notice.targetDetail;
+  sharedEls.noticePriority.value = notice.priority;
+  sharedEls.noticeStartDate.value = notice.startDate;
+  sharedEls.noticeEndDate.value = notice.endDate;
+  sharedEls.noticePoster.value = notice.poster;
+  sharedEls.noticePass.value = '';
+  updateNoticeTargetDetailVisibility();
+  sharedEls.noticeForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setNoticeMessage('選択した連絡を変更できます。削除する場合は操作を「削除」にしてください。', false);
+}
+
+function fillFacilityForm(id) {
+  const item = sharedState.facilities.find(entry => entry.id === id);
+  if (!item) return;
+  sharedEls.facilityMode.value = 'edit';
+  sharedEls.facilityId.value = item.id;
+  sharedEls.facilityCategory.value = item.category;
+  sharedEls.facilityTitle.value = item.title;
+  sharedEls.facilityTarget.value = item.target;
+  sharedEls.facilityStartDate.value = item.startDate;
+  sharedEls.facilityEndDate.value = item.endDate;
+  sharedEls.facilityStartTime.value = item.startTime;
+  sharedEls.facilityFinishTime.value = item.finishTime;
+  sharedEls.facilityContent.value = item.content;
+  sharedEls.facilityPoster.value = item.poster;
+  sharedEls.facilityPass.value = '';
+  sharedEls.facilityForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setFacilityMessage('選択した予定を変更できます。削除する場合は操作を「削除」にしてください。', false);
+}
+
+function resetNoticeForm() {
+  sharedEls.noticeForm.reset();
+  const today = new Date();
+  sharedEls.noticeMode.value = 'new';
+  sharedEls.noticeId.value = '';
+  sharedEls.noticeTargetType.value = '全体';
+  sharedEls.noticePriority.value = '通常';
+  sharedEls.noticeStartDate.value = formatLocalDate(today);
+  sharedEls.noticeEndDate.value = formatLocalDate(addLocalDays(today, 30));
+  sharedEls.noticePass.value = '';
+  updateNoticeTargetDetailVisibility();
+  setNoticeMessage('連絡内容を入力してください。', false);
+}
+
+function resetFacilityForm() {
+  sharedEls.facilityForm.reset();
+  const today = formatLocalDate(new Date());
+  sharedEls.facilityMode.value = 'new';
+  sharedEls.facilityId.value = '';
+  sharedEls.facilityCategory.value = '付帯設備メンテ';
+  sharedEls.facilityStartDate.value = today;
+  sharedEls.facilityEndDate.value = today;
+  sharedEls.facilityPass.value = '';
+  setFacilityMessage('予定を入力してください。', false);
+}
+
+function updateNoticeTargetDetailVisibility() {
+  const needsDetail = sharedEls.noticeTargetType.value !== '全体';
+  sharedEls.noticeTargetDetailLabel.classList.toggle('is-hidden', !needsDetail);
+  sharedEls.noticeTargetDetail.required = needsDetail;
+  if (!needsDetail) sharedEls.noticeTargetDetail.value = '';
+  sharedEls.noticeTargetDetail.placeholder = sharedEls.noticeTargetType.value === '特定装置'
+    ? '例：MOVPE #7'
+    : '例：除害装置、排気設備';
+}
+
+function moveFacilityMonth(delta) {
+  sharedState.month = new Date(
+    sharedState.month.getFullYear(),
+    sharedState.month.getMonth() + delta,
+    1
+  );
+  renderFacilityCalendar();
+}
+
+function normalizeNotices(rows) {
+  return rows.map(row => ({
+    id: String(row.id || '').trim(),
+    title: String(row.title || '').trim(),
+    content: String(row.content || '').trim(),
+    targetType: ['全体', '特定装置', '付帯設備'].includes(String(row.targetType || '')) ? String(row.targetType) : '全体',
+    targetDetail: String(row.targetDetail || '').trim(),
+    priority: ['通常', '重要', '緊急'].includes(String(row.priority || '')) ? String(row.priority) : '通常',
+    startDate: normalizeSharedDate(row.startDate),
+    endDate: normalizeSharedDate(row.endDate),
+    poster: String(row.poster || '').trim(),
+    createdAt: String(row.createdAt || ''),
+    updatedAt: String(row.updatedAt || ''),
+  })).filter(row => row.id && row.title && row.startDate && row.endDate);
+}
+
+function normalizeFacilities(rows) {
+  return rows.map(row => ({
+    id: String(row.id || '').trim(),
+    category: ['付帯設備メンテ', 'ガス交換'].includes(String(row.category || '')) ? String(row.category) : '付帯設備メンテ',
+    title: String(row.title || '').trim(),
+    target: String(row.target || '').trim(),
+    startDate: normalizeSharedDate(row.startDate),
+    endDate: normalizeSharedDate(row.endDate),
+    startTime: normalizeSharedTime(row.startTime),
+    finishTime: normalizeSharedTime(row.finishTime),
+    content: String(row.content || '').trim(),
+    poster: String(row.poster || '').trim(),
+    createdAt: String(row.createdAt || ''),
+    updatedAt: String(row.updatedAt || ''),
+  })).filter(row => row.id && row.title && row.startDate && row.endDate);
+}
+
+function normalizeSharedDate(value) {
+  const text = String(value || '').trim().replace(/\//g, '-');
+  const match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!match) return '';
+  return `${match[1]}-${String(Number(match[2])).padStart(2, '0')}-${String(Number(match[3])).padStart(2, '0')}`;
+}
+
+function normalizeSharedTime(value) {
+  const text = String(value || '').trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return '';
+  return `${String(Number(match[1])).padStart(2, '0')}:${match[2]}`;
+}
+
+function noticeTargetText(notice) {
+  return notice.targetType === '全体'
+    ? '全体'
+    : `${notice.targetType}：${notice.targetDetail || '未指定'}`;
+}
+
+function priorityClass(priority) {
+  if (priority === '緊急') return 'emergency';
+  if (priority === '重要') return 'important';
+  return 'normal';
+}
+
+function facilityCategoryClass(category) {
+  return category === 'ガス交換' ? 'gas' : 'maintenance';
+}
+
+function capitalizeMode(mode) {
+  if (mode === 'edit') return 'Edit';
+  if (mode === 'delete') return 'Delete';
+  return 'New';
+}
+
+function setSharedStatus(text, isError) {
+  setNoticeMessage(text, isError);
+  setFacilityMessage(text, isError);
+}
+
+function setNoticeMessage(text, isError) {
+  sharedEls.noticeStatus.textContent = `メッセージ：${text}`;
+  sharedEls.noticeStatus.classList.toggle('error', Boolean(isError));
+}
+
+function setFacilityMessage(text, isError) {
+  sharedEls.facilityStatus.textContent = `メッセージ：${text}`;
+  sharedEls.facilityStatus.classList.toggle('error', Boolean(isError));
+}
+
+function hasSharedApi() {
+  return typeof API_URL !== 'undefined' && /^https:\/\//.test(String(API_URL || '').trim());
+}
+
+function sharedApiCall(params, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `__moroomSharedJsonp_${Date.now()}_${sharedState.jsonpSeq++}`;
+    const script = document.createElement('script');
+    const query = new URLSearchParams({ ...params, callback: callbackName, _: String(Date.now()) });
+    let finished = false;
+
+    const cleanup = () => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(timer);
+      delete window[callbackName];
+      script.remove();
+    };
+
+    window[callbackName] = data => {
+      cleanup();
+      resolve(data);
+    };
+
+    script.onerror = () => {
+      cleanup();
+      reject(new Error('Google Apps Scriptとの通信に失敗しました。'));
+    };
+
+    const timer = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('Google Apps Scriptからの応答がタイムアウトしました。'));
+    }, timeoutMs || 15000);
+
+    script.src = `${String(API_URL).replace(/\?+$/, '')}?${query.toString()}`;
+    document.head.appendChild(script);
+  });
+}
+
+function readSharedCache() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SHARED_CACHE_KEY) || 'null');
+    if (!parsed || !Array.isArray(parsed.notices) || !Array.isArray(parsed.facilities)) return null;
+    return parsed;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeSharedCache(value) {
+  try {
+    localStorage.setItem(SHARED_CACHE_KEY, JSON.stringify(value));
+  } catch (error) {
+    // 保存容量やブラウザ設定で失敗しても、画面表示は継続する。
+  }
+}
+
+function readSharedLocalStore() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SHARED_LOCAL_KEY) || 'null');
+    if (parsed && Array.isArray(parsed.notices) && Array.isArray(parsed.facilities)) {
+      return { ok: true, notices: parsed.notices, facilities: parsed.facilities };
+    }
+  } catch (error) {
+    // 破損データは初期化する。
+  }
+  return { ok: true, notices: [], facilities: [] };
+}
+
+function writeSharedLocalStore(store) {
+  localStorage.setItem(SHARED_LOCAL_KEY, JSON.stringify(store));
+}
+
+function localSharedAction(payload) {
+  const store = readSharedLocalStore();
+  const now = new Date().toISOString();
+
+  if (payload.action.startsWith('notice')) {
+    const rows = store.notices;
+    if (payload.action === 'noticeNew') {
+      const record = { ...payload, id: makeLocalSharedId('N'), passHash: payload.pass, createdAt: now, updatedAt: now };
+      delete record.action;
+      delete record.pass;
+      rows.push(record);
+      writeSharedLocalStore(store);
+      return { ok: true, message: '管理室連絡を登録しました。' };
+    }
+    const index = rows.findIndex(row => row.id === payload.id);
+    if (index < 0) return { ok: false, error: '対象の管理室連絡が見つかりません。' };
+    if (rows[index].passHash !== payload.pass) return { ok: false, error: '管理パスワードが違います。' };
+    if (payload.action === 'noticeDelete') {
+      rows.splice(index, 1);
+      writeSharedLocalStore(store);
+      return { ok: true, message: '管理室連絡を削除しました。' };
+    }
+    const updated = { ...rows[index], ...payload, updatedAt: now };
+    delete updated.action;
+    delete updated.pass;
+    rows[index] = updated;
+    writeSharedLocalStore(store);
+    return { ok: true, message: '管理室連絡を更新しました。' };
+  }
+
+  const rows = store.facilities;
+  if (payload.action === 'facilityNew') {
+    const record = { ...payload, id: makeLocalSharedId('F'), passHash: payload.pass, createdAt: now, updatedAt: now };
+    delete record.action;
+    delete record.pass;
+    rows.push(record);
+    writeSharedLocalStore(store);
+    return { ok: true, message: '付帯設備・ガス交換予定を登録しました。' };
+  }
+  const index = rows.findIndex(row => row.id === payload.id);
+  if (index < 0) return { ok: false, error: '対象の予定が見つかりません。' };
+  if (rows[index].passHash !== payload.pass) return { ok: false, error: '管理パスワードが違います。' };
+  if (payload.action === 'facilityDelete') {
+    rows.splice(index, 1);
+    writeSharedLocalStore(store);
+    return { ok: true, message: '付帯設備・ガス交換予定を削除しました。' };
+  }
+  const updated = { ...rows[index], ...payload, updatedAt: now };
+  delete updated.action;
+  delete updated.pass;
+  rows[index] = updated;
+  writeSharedLocalStore(store);
+  return { ok: true, message: '付帯設備・ガス交換予定を更新しました。' };
+}
+
+function makeLocalSharedId(prefix) {
+  return prefix + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+}
+
+function formatLocalDate(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+function addLocalDays(date, days) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function formatMultiline(value) {
+  return escapeSharedHtml(value).replace(/\n/g, '<br>');
+}
+
+function escapeSharedHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}

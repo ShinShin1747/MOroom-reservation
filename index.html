@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://script.google.com">
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
   <title>装置予約システム</title>
-  <link rel="stylesheet" href="style_v7_timeline.css?v=20260710-v11-equipment-cards">
+  <link rel="stylesheet" href="style_v7_timeline.css?v=20260713-v12-shared">
 </head>
 <body>
   <header class="site-header">
@@ -22,6 +22,9 @@
   <main class="layout">
     <section id="mainViewPanel" class="panel full main-view-panel">
       <div id="equipmentTabs" class="tabs" aria-label="表示切替"></div>
+
+      <!-- 重要・緊急の管理室連絡を、どのタブでも予約表の上に固定表示 -->
+      <section id="importantNoticeBanner" class="important-notice-banner is-hidden" aria-live="polite"></section>
 
       <div id="calendarToolbar" class="toolbar">
         <label class="month-jump" for="monthPicker">
@@ -61,6 +64,161 @@
         <div id="emailStatus" class="message">メッセージ：未読み込み</div>
         <div id="emailContentList" class="email-list"></div>
       </div>
+
+      <!-- 管理室からの連絡 -->
+      <section id="adminNoticeView" class="shared-custom-view is-hidden" aria-labelledby="adminNoticeTitle">
+        <div class="shared-view-header">
+          <div>
+            <h2 id="adminNoticeTitle">管理室からの連絡</h2>
+            <p class="hint">通常の連絡はこの欄で確認できます。重要・緊急の連絡は、掲載期間中、予約表の上にも表示されます。</p>
+          </div>
+          <button type="button" id="adminNoticeReloadBtn">再読み込み</button>
+        </div>
+
+        <div class="shared-view-grid">
+          <div>
+            <div id="adminNoticeStatus" class="message">メッセージ：読み込み中...</div>
+            <div id="adminNoticeList" class="shared-card-list"></div>
+          </div>
+
+          <form id="adminNoticeForm" class="shared-form">
+            <h3>連絡の登録・変更・削除</h3>
+            <label>操作*
+              <select id="adminNoticeMode" required>
+                <option value="new">新規登録</option>
+                <option value="edit">変更</option>
+                <option value="delete">削除</option>
+              </select>
+            </label>
+            <label>連絡ID
+              <input id="adminNoticeId" type="text" readonly>
+            </label>
+            <label>タイトル*
+              <input id="adminNoticeTitleInput" type="text" maxlength="120" required>
+            </label>
+            <label>連絡内容*
+              <textarea id="adminNoticeContent" rows="6" maxlength="3000" required></textarea>
+            </label>
+            <label>対象*
+              <select id="adminNoticeTargetType" required>
+                <option value="全体">全体</option>
+                <option value="特定装置">特定装置</option>
+                <option value="付帯設備">付帯設備</option>
+              </select>
+            </label>
+            <label id="adminNoticeTargetDetailLabel" class="is-hidden">対象の詳細*
+              <input id="adminNoticeTargetDetail" type="text" maxlength="120" placeholder="例：MOVPE #7、除害装置">
+            </label>
+            <label>重要度*
+              <select id="adminNoticePriority" required>
+                <option value="通常">通常</option>
+                <option value="重要">重要</option>
+                <option value="緊急">緊急</option>
+              </select>
+            </label>
+            <div class="row2">
+              <label>掲載開始日*
+                <input id="adminNoticeStartDate" type="date" required>
+              </label>
+              <label>掲載終了日*
+                <input id="adminNoticeEndDate" type="date" required>
+              </label>
+            </div>
+            <label>投稿者*
+              <input id="adminNoticePoster" type="text" maxlength="80" required>
+            </label>
+            <label>管理パスワード*
+              <input id="adminNoticePass" type="password" required>
+              <span class="field-note">変更・削除には、登録時と同じパスワードが必要です。</span>
+            </label>
+            <button class="primary" type="submit">送信</button>
+            <button type="button" id="adminNoticeResetBtn">入力をリセット</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- 付帯設備メンテ・ガス交換 -->
+      <section id="facilityScheduleView" class="shared-custom-view is-hidden" aria-labelledby="facilityScheduleTitle">
+        <div class="shared-view-header">
+          <div>
+            <h2 id="facilityScheduleTitle">付帯設備メンテ・ガス交換</h2>
+            <p class="hint">付帯設備のメンテナンスとガス交換予定を月間スケジュールで確認できます。</p>
+          </div>
+          <button type="button" id="facilityReloadBtn">再読み込み</button>
+        </div>
+
+        <div class="shared-view-grid facility-grid">
+          <div class="facility-calendar-section">
+            <div class="facility-month-toolbar">
+              <button type="button" id="facilityPrevMonth">← 前月</button>
+              <button type="button" id="facilityThisMonth">今月</button>
+              <label>月選択
+                <input id="facilityMonthPicker" type="month">
+              </label>
+              <button type="button" id="facilityNextMonth">次月 →</button>
+            </div>
+            <div id="facilityStatus" class="message">メッセージ：読み込み中...</div>
+            <div id="facilityMonthTitle" class="facility-month-title"></div>
+            <div class="facility-calendar-wrap">
+              <div id="facilityCalendar" class="facility-calendar" aria-label="付帯設備メンテ・ガス交換 月間予定表"></div>
+            </div>
+          </div>
+
+          <form id="facilityForm" class="shared-form">
+            <h3>予定の登録・変更・削除</h3>
+            <label>操作*
+              <select id="facilityMode" required>
+                <option value="new">新規登録</option>
+                <option value="edit">変更</option>
+                <option value="delete">削除</option>
+              </select>
+            </label>
+            <label>予定ID
+              <input id="facilityId" type="text" readonly>
+            </label>
+            <label>区分*
+              <select id="facilityCategory" required>
+                <option value="付帯設備メンテ">付帯設備メンテ</option>
+                <option value="ガス交換">ガス交換</option>
+              </select>
+            </label>
+            <label>タイトル*
+              <input id="facilityTitleInput" type="text" maxlength="120" required placeholder="例：除害装置 定期メンテ">
+            </label>
+            <label>対象設備・ガス名*
+              <input id="facilityTarget" type="text" maxlength="120" required placeholder="例：除害装置、NH3ボンベ">
+            </label>
+            <div class="row2">
+              <label>開始日*
+                <input id="facilityStartDate" type="date" required>
+              </label>
+              <label>終了日*
+                <input id="facilityEndDate" type="date" required>
+              </label>
+            </div>
+            <div class="row2">
+              <label>開始時刻
+                <input id="facilityStartTime" type="time">
+              </label>
+              <label>終了時刻
+                <input id="facilityFinishTime" type="time">
+              </label>
+            </div>
+            <label>内容
+              <textarea id="facilityContent" rows="5" maxlength="2000"></textarea>
+            </label>
+            <label>投稿者*
+              <input id="facilityPoster" type="text" maxlength="80" required>
+            </label>
+            <label>管理パスワード*
+              <input id="facilityPass" type="password" required>
+              <span class="field-note">変更・削除には、登録時と同じパスワードが必要です。</span>
+            </label>
+            <button class="primary" type="submit">送信</button>
+            <button type="button" id="facilityResetBtn">入力をリセット</button>
+          </form>
+        </div>
+      </section>
     </section>
 
     <section id="formPanel" class="panel">
@@ -154,6 +312,6 @@
   </footer>
 
   <script src="config.js?v=20260710-v10"></script>
-  <script src="script_v7_timeline.js?v=20260710-v11-equipment-cards" defer></script>
+  <script src="script_v7_timeline.js?v=20260713-v12-shared" defer></script>
 </body>
 </html>

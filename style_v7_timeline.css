@@ -651,3 +651,388 @@ footer {
     max-height: 68vh;
   }
 }
+
+
+/* ==========================================================================
+   管理室連絡・付帯設備メンテ／ガス交換 月間予定
+   ========================================================================== */
+
+/* 管理室連絡・付帯設備月間予定 追加機能 */
+
+.is-hidden { display: none !important; }
+
+.tabs button.admin-notice-tab {
+  border-color: #8a5a00;
+}
+.tabs button.admin-notice-tab.active {
+  border-color: #8a5a00;
+  background: #8a5a00;
+}
+.tabs button.facility-schedule-tab {
+  border-color: #166b66;
+}
+.tabs button.facility-schedule-tab.active {
+  border-color: #166b66;
+  background: #166b66;
+}
+
+/* 追加タブ表示中は、既存予約・メール画面だけを隠す。 */
+body.shared-info-active #calendarToolbar,
+body.shared-info-active .calendar-title-row,
+body.shared-info-active #calendarWrap,
+body.shared-info-active #emailContentView,
+body.shared-info-active #formPanel,
+body.shared-info-active #reservationPanel {
+  display: none !important;
+}
+body.shared-info-active .main-view-panel {
+  min-height: calc(100vh - 170px);
+}
+
+.important-notice-banner {
+  margin: 4px 0 14px;
+  padding: 14px;
+  border: 2px solid #c46b00;
+  border-radius: 12px;
+  background: #fff8e7;
+  box-shadow: 0 5px 16px rgba(116, 67, 0, .12);
+}
+.important-notice-heading {
+  margin-bottom: 9px;
+  color: #743d00;
+  font-size: 16px;
+  font-weight: 900;
+}
+.important-notice-items {
+  display: grid;
+  gap: 9px;
+}
+.important-notice-item {
+  padding: 11px 13px;
+  border: 1px solid #dfb46d;
+  border-left: 7px solid #bf7300;
+  border-radius: 9px;
+  background: #fff;
+}
+.important-notice-item.priority-emergency {
+  border-color: #d9938d;
+  border-left-color: #b42318;
+  background: #fff5f4;
+}
+.important-notice-item strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 15px;
+}
+.important-notice-item p {
+  margin: 5px 0;
+  line-height: 1.55;
+}
+.important-notice-item small {
+  color: #657184;
+}
+.important-notice-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 11px;
+  align-items: center;
+  color: #5b6676;
+  font-size: 12px;
+}
+.priority-badge,
+.publication-state {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+}
+.priority-normal .priority-badge {
+  color: #31435a;
+  background: #e8eef5;
+}
+.priority-important .priority-badge {
+  color: #6d3a00;
+  background: #ffe0a8;
+}
+.priority-emergency .priority-badge {
+  color: #fff;
+  background: #b42318;
+}
+.publication-state {
+  color: #31586f;
+  background: #e7f2f8;
+}
+
+.shared-custom-view {
+  margin-top: 8px;
+}
+.shared-view-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.shared-view-header h2 {
+  margin-bottom: 5px;
+}
+.shared-view-header .hint {
+  margin: 0;
+}
+.shared-view-header > button,
+.facility-month-toolbar button,
+.shared-form > button:not(.primary) {
+  padding: 9px 12px;
+  border: 1px solid #bfcbd8;
+  border-radius: 9px;
+  color: #172033;
+  background: #fff;
+  font-weight: 700;
+}
+.shared-view-header > button:hover,
+.facility-month-toolbar button:hover,
+.shared-form > button:not(.primary):hover {
+  background: #edf3f8;
+}
+.shared-view-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(285px, .8fr);
+  gap: 18px;
+  align-items: start;
+}
+.shared-card-list {
+  display: grid;
+  gap: 10px;
+  max-height: calc(100vh - 335px);
+  min-height: 360px;
+  overflow: auto;
+  padding: 2px 5px 2px 2px;
+}
+.shared-card {
+  width: 100%;
+  display: grid;
+  gap: 5px;
+  padding: 13px 14px;
+  border: 1px solid #cbd6e2;
+  border-left: 7px solid #708197;
+  border-radius: 11px;
+  color: #172033;
+  background: #fff;
+  text-align: left;
+  box-shadow: 0 3px 9px rgba(32, 52, 78, .08);
+}
+.shared-card:hover,
+.shared-card:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 15px rgba(32, 52, 78, .15);
+  outline: 2px solid #9eb7ce;
+}
+.notice-card.priority-important { border-left-color: #c27600; }
+.notice-card.priority-emergency { border-left-color: #b42318; background: #fffafa; }
+.shared-card-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.shared-card strong {
+  font-size: 15px;
+}
+.shared-card-target,
+.shared-card-period,
+.shared-card small {
+  color: #5d6a7c;
+  font-size: 12px;
+}
+.shared-card-content {
+  margin-top: 3px;
+  line-height: 1.55;
+}
+.shared-empty {
+  display: grid;
+  min-height: 220px;
+  place-content: center;
+  padding: 20px;
+  border: 1px dashed #bdc9d6;
+  border-radius: 11px;
+  color: #687386;
+  background: #fafbfd;
+  text-align: center;
+}
+
+.shared-form {
+  position: sticky;
+  top: 12px;
+  display: grid;
+  gap: 12px;
+  max-height: calc(100vh - 210px);
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid #d2dce7;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.shared-form h3 {
+  margin: 0 0 2px;
+  font-size: 17px;
+}
+.shared-form .primary {
+  padding: 11px 14px;
+}
+.shared-form textarea {
+  resize: vertical;
+}
+
+.facility-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(285px, .72fr);
+}
+.facility-calendar-section {
+  min-width: 0;
+}
+.facility-month-toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 11px;
+  background: #f3f7f8;
+}
+.facility-month-toolbar label {
+  min-width: 150px;
+  margin-left: auto;
+}
+.facility-month-title {
+  margin: 12px 0 8px;
+  font-size: 21px;
+  font-weight: 900;
+  text-align: center;
+}
+.facility-calendar-wrap {
+  overflow: auto;
+  border: 1px solid #c5d1dc;
+  border-radius: 11px;
+  background: #fff;
+}
+.facility-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(120px, 1fr));
+  min-width: 840px;
+}
+.facility-weekday {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 9px 6px;
+  border-right: 1px solid #d8e0e8;
+  border-bottom: 1px solid #c1ccd8;
+  background: #edf3f6;
+  font-weight: 900;
+  text-align: center;
+}
+.facility-weekday:nth-child(7) { border-right: 0; }
+.facility-day {
+  min-height: 130px;
+  padding: 6px;
+  border-right: 1px solid #dce3ea;
+  border-bottom: 1px solid #dce3ea;
+  background: #fff;
+}
+.facility-day:nth-child(7n) { border-right: 0; }
+.facility-day.other-month { background: #f6f8fa; }
+.facility-day.today { box-shadow: inset 0 0 0 3px #e2ad3c; }
+.facility-date-number {
+  margin-bottom: 5px;
+  color: #31435a;
+  font-size: 12px;
+  font-weight: 900;
+}
+.facility-day.other-month .facility-date-number { color: #9aa4b2; }
+.facility-day-events {
+  display: grid;
+  gap: 4px;
+}
+.facility-event {
+  width: 100%;
+  display: grid;
+  gap: 1px;
+  padding: 5px 6px;
+  border: 1px solid #91b6b1;
+  border-left: 5px solid #24766f;
+  border-radius: 7px;
+  color: #173633;
+  background: #eaf6f4;
+  text-align: left;
+  box-shadow: 0 1px 4px rgba(37, 83, 78, .08);
+}
+.facility-event.category-gas {
+  border-color: #9baed0;
+  border-left-color: #405f9b;
+  color: #243758;
+  background: #edf2fb;
+}
+.facility-event:hover,
+.facility-event:focus-visible {
+  z-index: 2;
+  transform: translateY(-1px);
+  outline: 2px solid #8fb2c5;
+}
+.facility-event-time {
+  font-size: 10px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.facility-event-title {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+}
+.facility-event-target {
+  overflow: hidden;
+  color: #596779;
+  font-size: 10px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 1000px) {
+  .shared-view-grid,
+  .facility-grid {
+    grid-template-columns: 1fr;
+  }
+  .shared-form {
+    position: static;
+    max-height: none;
+  }
+  .shared-card-list {
+    max-height: 58vh;
+  }
+}
+
+@media (max-width: 620px) {
+  .important-notice-banner {
+    padding: 10px;
+  }
+  .important-notice-meta,
+  .shared-view-header,
+  .facility-month-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .shared-view-header > button {
+    width: 100%;
+  }
+  .facility-month-toolbar label {
+    width: 100%;
+    margin-left: 0;
+  }
+  .shared-card-list {
+    min-height: 280px;
+    max-height: 55vh;
+  }
+}
