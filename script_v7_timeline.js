@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '20260710-v11-equipment-cards';
+const APP_VERSION = '20260713-v13-admin-facility';
 
 const OVERALL_TAB_NAME = '全体表示';
 const MAINTENANCE_TAB_NAME = 'メンテ情報';
@@ -1184,7 +1184,11 @@ async function loadSharedInformation(options = {}) {
     }
 
     if (!result || result.ok === false) {
-      throw new Error((result && result.error) || '共有情報の読み込みに失敗しました。');
+      const apiError = (result && result.error) || '共有情報の読み込みに失敗しました。';
+      if (/不明な操作/.test(apiError)) {
+        throw new Error('Apps Scriptが旧版です。apps_script_backend.gsの内容で全置換し、「新バージョン」で再デプロイしてください。');
+      }
+      throw new Error(apiError);
     }
 
     sharedState.notices = normalizeNotices(result.notices || []);
