@@ -359,13 +359,32 @@ textarea { resize: vertical; }
 .email-content-header { align-items: flex-start; }
 .email-toolbar { display: flex; align-items: end; gap: 8px; }
 .email-pass-label { min-width: 220px; }
+.email-date-label { min-width: 190px; }
 .email-list { display: grid; gap: 12px; margin-top: 12px; }
 .email-card { padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
-.email-card h3 { margin: 0 0 5px; }
+.email-card h4 { margin: 0 0 5px; font-size: 16px; }
 .email-meta { color: var(--muted); font-size: 12px; }
 .email-body { margin-top: 10px; white-space: pre-wrap; line-height: 1.55; }
 .email-card details { margin-top: 10px; }
 .email-card a { color: var(--accent); }
+
+.email-day-group { display: grid; gap: 8px; }
+.email-day-heading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #eef4f8;
+}
+.email-day-heading h3 { margin: 0; font-size: 16px; }
+.email-day-heading span { color: var(--muted); font-size: 12px; font-weight: 700; }
+.email-day-items { display: grid; gap: 9px; }
 
 .is-hidden { display: none !important; }
 footer {
@@ -396,7 +415,7 @@ footer {
   .panel { padding: 14px; border-radius: 12px; }
   .row2, .maintenance-kind-grid, .check-grid { grid-template-columns: 1fr; }
   .email-toolbar { align-items: stretch; flex-direction: column; width: 100%; }
-  .email-pass-label { min-width: 0; }
+  .email-pass-label, .email-date-label { min-width: 0; }
   :root { --day-min: 132px; --time-col: 62px; }
 }
 

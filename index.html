@@ -52,11 +52,16 @@
         <div class="list-header email-content-header">
           <div>
             <h2>メール内容</h2>
-            <p class="hint">Gmailで users_movpe7@googlegroups.com 宛てに届いたメール内容を表示します。最新のメールから取得します。</p>
+            <p class="hint">users_movpe7@googlegroups.com 宛てに届いたメールを、受信日ごとに表示します。</p>
           </div>
           <div class="email-toolbar">
+            <label class="email-date-label">表示日
+              <select id="emailDateFilter">
+                <option value="">すべての日付</option>
+              </select>
+            </label>
             <label class="email-pass-label">メール表示パスワード
-              <input id="emailViewPass" type="password" placeholder="未設定なら空欄">
+              <input id="emailViewPass" type="password" placeholder="設定していない場合は空欄">
             </label>
             <button type="button" id="emailReloadBtn">メールを読み込み</button>
           </div>

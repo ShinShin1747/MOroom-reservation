@@ -1,66 +1,52 @@
-MOroom-reservation v13 更新手順
+MOroom-reservation メール表示修正版 更新手順
 
-【重要】
-ファイル名は変更していません。ZIP内は元と同じ6ファイルだけです。
-「不明な操作です。」を防ぐため、Apps Scriptを先に更新してからGitHubを更新してください。
+ファイル名は変更していません。ZIP内は元と同じ6ファイルです。
+今回の主な修正は「メール内容」欄です。
+
+【修正内容】
+- users_movpe7@googlegroups.com 宛てのメールだけを取得
+- 受信日ごとにグループ表示
+- 「表示日」から特定の日だけ選択可能
+- Gmail権限エラー時の案内を具体化
+- 現在のWebアプリURLをconfig.jsへ設定済み
 
 ==================================================
-1. Google Apps Scriptを更新
+1. Google Apps Scriptを更新・Gmail権限を許可
 ==================================================
-1) 予約用Googleスプレッドシートを開く
-2) 拡張機能 → Apps Script
-3) エディタ内の既存コードをすべて削除
-4) apps_script_backend.gs の内容をすべて貼り付け
-5) 自動保存されたことを確認
-6) 関数一覧から setupSharedSheets を選び、1回実行
-   - AdminNotices
-   - FacilitySchedules
-   の2シートが作成されます
-   ※ Reservationsと既存予約データは削除されません
-7) 右上「デプロイ」→「デプロイを管理」
-8) 使用中デプロイの鉛筆マークを押す
-9) バージョンで「新バージョン」を選択
-10) 「デプロイ」を押す
+1) 予約用スプレッドシート → 拡張機能 → Apps Script
+2) 既存コードを apps_script_backend.gs の内容で全置換
+3) 自動保存を確認
+4) 上部の関数選択欄で authorizeGmailAccess を選択
+5) 「実行」を押す
+6) Googleアカウントの権限確認画面でGmailへのアクセスを許可
+   ※ Webアプリをデプロイするアカウントで実行してください
+   ※ このアカウントのGmailにグループメールが届いている必要があります
+7) デプロイ → デプロイを管理 → 鉛筆マーク
+8) バージョン「新バージョン」→ デプロイ
+9) 実行ユーザーは「自分」にしてください
 
-コードを保存しただけでは公開中Webアプリは更新されません。
-必ず「新バージョン」で再デプロイしてください。
+コードの自動保存だけでは公開中Webアプリに反映されません。
+必ず認証後に新バージョンで再デプロイしてください。
 
 ==================================================
 2. GitHubを更新
 ==================================================
-GitHubリポジトリの同名ファイルを、ZIP内のファイルで上書きしてCommitしてください。
+以下をZIP内の同名ファイルで上書きし、Commitしてください。
 
 - index.html
 - script_v7_timeline.js
 - style_v7_timeline.css
 - config.js
 
-config.jsには、従来のWebアプリURLを設定しています。
-https://script.google.com/macros/s/AKfycbxTd9kicJntO5cFSS5PEjqvBUynzUDypma4hVE1SoIBhvr8PqxLCNV4560kE8_dhwJA/exec
-
-Apps Scriptの「デプロイを管理」に表示されるURLが異なる場合だけ、config.jsのAPI_URLをそのURLに置き換えてください。
+config.jsのURL:
+https://script.google.com/macros/s/AKfycbyqRdWkcSdIKDT0525VxLCv5k-XfDdaRS7w0ZBHRbiztiQtjH2zpowslTz8wl95X16g/exec
 
 ==================================================
-3. 表示を更新
+3. 表示確認
 ==================================================
-GitHubへCommit後、予約サイトを開いて Ctrl + F5 を押してください。
+GitHubへのCommit後、予約サイトをCtrl + F5で更新してください。
+「メール内容」→「メールを読み込み」で、日付ごとにメールが表示されます。
 
-追加機能:
-- 管理室からの連絡
-  - 通常／重要／緊急
-  - 掲載期間
-  - 重要・緊急は予約表上部にも表示
-  - 登録、変更、削除
-
-- 付帯設備メンテ・ガス交換
-  - 月間カレンダー
-  - 月移動、月選択
-  - 複数日予定
-  - 登録、変更、削除
-
-データ保存先:
-- 予約: Reservations
-- 管理室連絡: AdminNotices
-- 付帯設備予定: FacilitySchedules
-
-トラブル情報共有の専用欄は追加していません。既存のメール内容機能を使用します。
+【注意】
+GitHub PagesとWebアプリを一般公開している場合、メール内容もサイト閲覧者に表示されます。
+必要に応じて apps_script_backend.gs の EMAIL_VIEW_PASSWORD にパスワードを設定してください。

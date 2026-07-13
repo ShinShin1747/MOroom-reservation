@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '20260713-v13-admin-facility';
+const APP_VERSION = '20260713-v14-email-daily';
 
 const OVERALL_TAB_NAME = '全体表示';
 const MAINTENANCE_TAB_NAME = 'メンテ情報';
@@ -38,6 +38,7 @@ const state = {
   refreshTimer: null,
   emailLoading: false,
   emailLoaded: false,
+  emailDateFilter: '',
 };
 
 const els = {};
@@ -87,6 +88,7 @@ function mapElements() {
     emailStatus: document.getElementById('emailStatus'),
     emailList: document.getElementById('emailContentList'),
     emailViewPass: document.getElementById('emailViewPass'),
+    emailDateFilter: document.getElementById('emailDateFilter'),
     list: document.getElementById('reservationList'),
     form: document.getElementById('reservationForm'),
     message: document.getElementById('message'),
@@ -115,6 +117,10 @@ function bindEvents() {
   document.getElementById('reloadBtn').addEventListener('click', () => loadReservations({ background: false, force: true }));
   els.monthPicker.addEventListener('change', () => jumpToMonth(els.monthPicker.value));
   els.emailReloadBtn.addEventListener('click', () => loadEmailReservations({ force: true }));
+  els.emailDateFilter.addEventListener('change', () => {
+    state.emailDateFilter = els.emailDateFilter.value || '';
+    renderEmailList();
+  });
   els.form.addEventListener('submit', handleSubmit);
   els.equipment.addEventListener('change', () => {
     state.formEquipment = els.equipment.value;
@@ -592,6 +598,7 @@ async function loadEmailReservations(options = {}) {
     const rawMessages = extractEmailMessages(result);
     state.emails = normalizeEmailMessages(rawMessages);
     state.emailLoaded = true;
+    updateEmailDateFilter();
     renderEmailList();
 
     const versionText = result.version ? ` / Backend: ${result.version}` : '';
@@ -626,27 +633,90 @@ function extractEmailMessages(result) {
   return candidates.find(Array.isArray) || [];
 }
 
+function updateEmailDateFilter() {
+  const dates = Array.from(new Set(state.emails
+    .map(item => emailDateKey(item.receivedAt))
+    .filter(Boolean)))
+    .sort((a, b) => b.localeCompare(a));
+
+  if (state.emailDateFilter && !dates.includes(state.emailDateFilter)) {
+    state.emailDateFilter = '';
+  }
+
+  els.emailDateFilter.innerHTML = [
+    '<option value="">すべての日付</option>',
+    ...dates.map(date => `<option value="${escapeHtml(date)}">${escapeHtml(formatEmailDateHeading(date))}</option>`),
+  ].join('');
+  els.emailDateFilter.value = state.emailDateFilter;
+}
+
 function renderEmailList() {
   if (!state.emails.length) {
     els.emailList.innerHTML = '<div class="empty-card">「メールを読み込み」を押してください。</div>';
     return;
   }
 
-  els.emailList.innerHTML = state.emails.map(item => {
-    const metaParts = [item.receivedAt, item.from].filter(Boolean);
-    const destination = [item.to ? `To: ${item.to}` : '', item.cc ? `Cc: ${item.cc}` : ''].filter(Boolean).join(' / ');
+  const filtered = state.emailDateFilter
+    ? state.emails.filter(item => emailDateKey(item.receivedAt) === state.emailDateFilter)
+    : state.emails;
 
-    return `
-      <article class="email-card">
-        <h3>${escapeHtml(item.subject || '件名なし')}</h3>
-        <div class="email-meta">${escapeHtml(metaParts.join(' / '))}</div>
-        ${destination ? `<div class="email-destination">${escapeHtml(destination)}</div>` : ''}
-        ${item.summary ? `<p><strong>まとめ：</strong>${escapeHtml(item.summary)}</p>` : ''}
-        ${item.snippet ? `<p>${escapeHtml(item.snippet)}</p>` : ''}
-        ${item.body ? `<details><summary>本文全文を表示</summary><div class="email-body">${escapeHtml(item.body)}</div></details>` : ''}
-        ${safeHttpUrl(item.url) ? `<p><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Gmailで開く</a></p>` : ''}
-      </article>`;
-  }).join('');
+  if (!filtered.length) {
+    els.emailList.innerHTML = '<div class="empty-card">選択した日付のメールはありません。</div>';
+    return;
+  }
+
+  const groups = new Map();
+  filtered.forEach(item => {
+    const dateKey = emailDateKey(item.receivedAt) || '日付不明';
+    if (!groups.has(dateKey)) groups.set(dateKey, []);
+    groups.get(dateKey).push(item);
+  });
+
+  els.emailList.innerHTML = Array.from(groups.entries()).map(([dateKey, items]) => `
+    <section class="email-day-group">
+      <div class="email-day-heading">
+        <h3>${escapeHtml(dateKey === '日付不明' ? dateKey : formatEmailDateHeading(dateKey))}</h3>
+        <span>${items.length}件</span>
+      </div>
+      <div class="email-day-items">
+        ${items.map(renderEmailCard).join('')}
+      </div>
+    </section>
+  `).join('');
+}
+
+function renderEmailCard(item) {
+  const time = emailTimePart(item.receivedAt);
+  const metaParts = [time, item.from].filter(Boolean);
+  const destination = [item.to ? `To: ${item.to}` : '', item.cc ? `Cc: ${item.cc}` : ''].filter(Boolean).join(' / ');
+
+  return `
+    <article class="email-card">
+      <h4>${escapeHtml(item.subject || '件名なし')}</h4>
+      <div class="email-meta">${escapeHtml(metaParts.join(' / '))}</div>
+      ${destination ? `<div class="email-destination">${escapeHtml(destination)}</div>` : ''}
+      ${item.summary ? `<p><strong>概要：</strong>${escapeHtml(item.summary)}</p>` : ''}
+      ${item.snippet ? `<p>${escapeHtml(item.snippet)}</p>` : ''}
+      ${item.body ? `<details><summary>本文全文を表示</summary><div class="email-body">${escapeHtml(item.body)}</div></details>` : ''}
+    </article>`;
+}
+
+function emailDateKey(receivedAt) {
+  const match = String(receivedAt || '').match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : '';
+}
+
+function emailTimePart(receivedAt) {
+  const match = String(receivedAt || '').match(/\b(\d{2}:\d{2})\b/);
+  return match ? match[1] : '';
+}
+
+function formatEmailDateHeading(dateText) {
+  const match = String(dateText || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return String(dateText || '');
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+  return `${Number(match[1])}年${Number(match[2])}月${Number(match[3])}日（${weekdays[date.getDay()]}）`;
 }
 
 function normalizeReservations(items) {
