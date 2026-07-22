@@ -74,7 +74,7 @@ sendInstantNotificationTestEmail
 
 次のアドレスだけへ、サンプルのメンテ登録メールを送信します。
 
-to.shin.z0@s.mail.nagoya-u.ac.jp
+ito.shin.z0@s.mail.nagoya-u.ac.jp
 
 このテスト関数では、予約・管理室連絡・付帯設備予定を登録しません。
 mousers@googlegroups.com にも送信しません。
