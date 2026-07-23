@@ -9,7 +9,7 @@
   --accent: #2a66a5;
   --ok: #147d56;
   --error: #b42318;
-  --hour-height: 32px;
+  --hour-height: 30px;
   --time-col: 72px;
   --day-min: 150px;
   --radius: 16px;
@@ -152,9 +152,11 @@ button { cursor: pointer; }
 
 /* 全体表示・メンテ情報：縦方向を少し広げた24時間表示 */
 body.expanded-view-active .calendar-wrap {
+  height: auto;
+  min-height: 0;
   max-height: none;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
 }
 body.expanded-view-active .timeline-corner,
 body.expanded-view-active .timeline-day-head {
@@ -194,8 +196,8 @@ body.expanded-view-active .timeline-event .event-remark {
 }
 body.expanded-view-active .last-use-label,
 body.expanded-view-active .last-use-cell {
-  min-height: 50px;
-  padding: 6px;
+  min-height: 52px;
+  padding: 7px;
   font-size: 11px;
 }
 body.expanded-view-active .last-use-cell strong {
@@ -319,27 +321,47 @@ body.expanded-view-active .last-use-cell strong {
   text-align: center;
 }
 
+.last-use-summary {
+  margin-bottom: 12px;
+  border: 1px solid #b8c8d8;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f6f9fc;
+}
+.last-use-summary-title {
+  padding: 8px 12px;
+  border-bottom: 1px solid #cbd6e2;
+  background: #e7eef6;
+  color: #183153;
+  font-size: 13px;
+  font-weight: 900;
+}
 .last-use-grid {
   display: grid;
   grid-template-columns: var(--time-col) repeat(7, minmax(var(--day-min), 1fr));
   min-width: calc(var(--time-col) + 7 * var(--day-min));
-  border-bottom: 1px solid #bdc9d6;
-  background: #f6f9fc;
+  background: #f9fbfd;
 }
 .last-use-label,
 .last-use-cell {
-  min-height: 46px;
+  min-height: 52px;
   display: grid;
   place-content: center;
-  padding: 6px;
+  padding: 7px;
   border-right: 1px solid var(--line);
   font-size: 11px;
   text-align: center;
 }
-.last-use-label { position: sticky; left: 0; z-index: 21; background: #eaf0f6; font-weight: 900; }
-.last-use-cell strong { display: block; font-size: 12px; color: #183153; }
-.last-use-equipment { display: block; margin-top: 2px; font-weight: 800; line-height: 1.25; }
+.last-use-label { position: sticky; left: 0; z-index: 21; background: #eef3f8; font-weight: 900; }
+.last-use-cell:last-child { border-right: 0; }
+.last-use-cell strong { display: block; font-size: 13px; color: #183153; }
+.last-use-equipment { display: block; margin-top: 3px; font-weight: 800; line-height: 1.25; }
 .last-use-empty { color: var(--muted); }
+
+.timeline-frame {
+  min-width: calc(var(--time-col) + 7 * var(--day-min));
+  border-top: 1px solid #bcc9d6;
+}
 
 form { display: grid; gap: 13px; }
 label { display: grid; gap: 6px; font-weight: 700; }
@@ -481,8 +503,8 @@ footer {
 }
 
 .main-view-panel.expanded-view .calendar-wrap {
-  height: calc(100vh - 285px);
-  min-height: 680px;
+  height: auto;
+  min-height: 0;
   max-height: none;
 }
 
@@ -512,8 +534,8 @@ footer {
 
 @media (max-width: 900px) {
   .main-view-panel.expanded-view .calendar-wrap {
-    height: 72vh;
-    min-height: 600px;
+    height: auto;
+    min-height: 0;
   }
 
   .main-view-panel.expanded-view .email-content-view {
@@ -532,8 +554,8 @@ footer {
   }
 
   .main-view-panel.expanded-view .calendar-wrap {
-    height: 70vh;
-    min-height: 520px;
+    height: auto;
+    min-height: 0;
   }
 
   .main-view-panel.expanded-view .email-content-view {

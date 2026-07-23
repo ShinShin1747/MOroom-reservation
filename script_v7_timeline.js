@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '20260723-v19-last-use-tall';
+const APP_VERSION = '20260723-v20-continuous-timeline';
 
 const OVERALL_TAB_NAME = '全体表示';
 const MAINTENANCE_TAB_NAME = 'メンテ情報';
@@ -23,7 +23,7 @@ const ACTIVE_MAINTENANCE_TYPES = Array.from(new Set(
 const VIEW_TABS = [...ACTUAL_EQUIPMENTS, OVERALL_TAB_NAME, MAINTENANCE_TAB_NAME, EMAIL_CONTENT_TAB_NAME];
 const CACHE_KEY = 'moroom_reservations_cache_v8';
 const LOCAL_KEY = 'equipmentReservations';
-const HOUR_HEIGHT = 32;
+const HOUR_HEIGHT = 30;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 const state = {
@@ -406,19 +406,24 @@ function renderTimeline() {
       : 'この装置の予約はありません。';
 
   els.timeline.innerHTML = `
+    <section class="last-use-summary" aria-label="${escapeHtml(lastUseLabel)}">
+      <div class="last-use-summary-title">${escapeHtml(lastUseLabel)}</div>
+      <div class="last-use-grid">
+        <div class="last-use-label">曜日</div>
+        ${lastUse}
+      </div>
+    </section>
     ${facilitySummary}
-    <div class="timeline-header">
-      <div class="timeline-corner">時間</div>
-      ${dayHeads}
-    </div>
-    <div class="last-use-grid">
-      <div class="last-use-label">${escapeHtml(lastUseLabel)}</div>
-      ${lastUse}
-    </div>
-    <div class="timeline-body">
+    <div class="timeline-frame">
+      <div class="timeline-header">
+        <div class="timeline-corner">時間</div>
+        ${dayHeads}
+      </div>
+      <div class="timeline-body">
       <div class="time-axis">${hourLabels}</div>
       ${tracks}
-      ${(items.length || facilityItems.length) ? '' : `<div class="timeline-empty">${escapeHtml(emptyText)}</div>`}
+        ${(items.length || facilityItems.length) ? '' : `<div class="timeline-empty">${escapeHtml(emptyText)}</div>`}
+      </div>
     </div>`;
 
   els.timeline.querySelectorAll('[data-reservation-id]').forEach(button => {
