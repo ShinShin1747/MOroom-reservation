@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbyqRdWkcSdIKDT0525VxLCv5k-XfDdaRS7w0ZBHRbiztiQtjH2zpowslTz8wl95X16g/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycby9d-gQ4Q_NFPeVpDWq6b0O_BkGBydLCvnOezaW_tZhVC8QptjraIXYT6UDsPuC8ahp/exec";
 
 const EQUIPMENTS = [
   "MOVPE 豊田中研",
