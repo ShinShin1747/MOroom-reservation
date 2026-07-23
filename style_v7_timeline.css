@@ -9,7 +9,7 @@
   --accent: #2a66a5;
   --ok: #147d56;
   --error: #b42318;
-  --hour-height: 30px;
+  --hour-height: 48px;
   --time-col: 72px;
   --day-min: 150px;
   --radius: 16px;
@@ -171,28 +171,53 @@ body.expanded-view-active .time-label {
   font-size: 10px;
 }
 body.expanded-view-active .timeline-event {
-  min-height: 26px;
-  padding: 3px 5px;
+  min-height: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 5px 6px;
   border-left-width: 4px;
-  border-radius: 6px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  border-radius: 7px;
+  overflow: hidden;
+  white-space: normal;
+  text-overflow: clip;
 }
 body.expanded-view-active .timeline-event span {
-  display: inline;
+  display: block;
+  min-width: 0;
   margin: 0;
-  font-size: 10px;
-  line-height: 1.2;
+  font-size: 10.5px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: clip;
 }
 body.expanded-view-active .timeline-event span + span::before {
-  content: " / ";
-  color: #7a8797;
+  content: none;
 }
 body.expanded-view-active .timeline-event .event-time {
+  font-size: 10px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+body.expanded-view-active .timeline-event .event-equipment {
+  color: #183153;
   font-weight: 900;
 }
+body.expanded-view-active .timeline-event .event-name {
+  font-weight: 800;
+}
+body.expanded-view-active .timeline-event .event-purpose {
+  color: #6f3900;
+  font-weight: 800;
+}
 body.expanded-view-active .timeline-event .event-remark {
-  display: none;
+  display: block;
+  padding-top: 2px;
+  border-top: 1px dashed rgba(72, 87, 106, .28);
+  color: #48576a;
 }
 body.expanded-view-active .last-use-label,
 body.expanded-view-active .last-use-cell {
@@ -1238,6 +1263,18 @@ body.shared-info-active .main-view-panel {
   .maintenance-facility-category { grid-row: auto; justify-self: start; }
 }
 
+
+
+/* v21: overall / maintenance cards show all text without ellipsis */
+@media (min-width: 1500px) {
+  :root { --day-min: 170px; }
+  body.expanded-view-active .timeline-event span { font-size: 11px; }
+}
+
+@media (max-width: 900px) {
+  body.expanded-view-active .timeline-event { padding: 4px 5px; }
+  body.expanded-view-active .timeline-event span { font-size: 10px; }
+}
 
 /* v18: overall view shows every maintenance category */
 body.expanded-view-active .timeline-event.purpose-maintenance {

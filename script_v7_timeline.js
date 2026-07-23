@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '20260723-v20-continuous-timeline';
+const APP_VERSION = '20260723-v21-readable-expanded-cards';
 
 const OVERALL_TAB_NAME = '全体表示';
 const MAINTENANCE_TAB_NAME = 'メンテ情報';
@@ -23,7 +23,7 @@ const ACTIVE_MAINTENANCE_TYPES = Array.from(new Set(
 const VIEW_TABS = [...ACTUAL_EQUIPMENTS, OVERALL_TAB_NAME, MAINTENANCE_TAB_NAME, EMAIL_CONTENT_TAB_NAME];
 const CACHE_KEY = 'moroom_reservations_cache_v8';
 const LOCAL_KEY = 'equipmentReservations';
-const HOUR_HEIGHT = 30;
+const HOUR_HEIGHT = 48;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 const state = {
@@ -493,15 +493,43 @@ function renderFacilityMaintenanceSummary(startDate, endDate, prefetchedFaciliti
     </section>`;
 }
 
+function estimateExpandedEventHeight(reservation) {
+  // 全体表示・メンテ情報では、省略記号を使わず全項目を複数行で表示する。
+  // 日本語中心の表示を想定し、文字数から必要高さをやや余裕を持って見積もる。
+  const fields = [
+    `${reservation.start || ''}-${reservation.finish || ''} ${reservation.equipment || ''}`.trim(),
+    reservation.name || '',
+    displayPurpose(reservation) || '',
+    reservation.remark || '',
+  ].filter(Boolean);
+
+  const estimatedLines = fields.reduce((sum, text, index) => {
+    const charsPerLine = index === 0 ? 15 : 13;
+    return sum + Math.max(1, Math.ceil(Array.from(String(text)).length / charsPerLine));
+  }, 0);
+
+  return Math.max(58, 14 + estimatedLines * 14);
+}
+
 function layoutOverlaps(items) {
   const normalized = items
-    .map(reservation => ({
-      reservation,
-      startMinute: parseTimeMinutes(reservation.start),
-      finishMinute: parseTimeMinutes(reservation.finish),
-    }))
+    .map(reservation => {
+      const startMinute = parseTimeMinutes(reservation.start);
+      const finishMinute = parseTimeMinutes(reservation.finish);
+      const estimatedHeight = estimateExpandedEventHeight(reservation);
+      const visualDurationMinutes = Math.ceil((estimatedHeight / HOUR_HEIGHT) * 60);
+      return {
+        reservation,
+        startMinute,
+        finishMinute,
+        estimatedHeight,
+        visualFinishMinute: startMinute === null || finishMinute === null
+          ? finishMinute
+          : Math.max(finishMinute, startMinute + visualDurationMinutes),
+      };
+    })
     .filter(item => item.startMinute !== null && item.finishMinute !== null && item.finishMinute > item.startMinute)
-    .sort((a, b) => a.startMinute - b.startMinute || a.finishMinute - b.finishMinute || a.reservation.equipment.localeCompare(b.reservation.equipment));
+    .sort((a, b) => a.startMinute - b.startMinute || a.visualFinishMinute - b.visualFinishMinute || a.reservation.equipment.localeCompare(b.reservation.equipment));
 
   const clusters = [];
   let current = [];
@@ -509,11 +537,11 @@ function layoutOverlaps(items) {
   for (const item of normalized) {
     if (!current.length || item.startMinute < clusterEnd) {
       current.push(item);
-      clusterEnd = Math.max(clusterEnd, item.finishMinute);
+      clusterEnd = Math.max(clusterEnd, item.visualFinishMinute);
     } else {
       clusters.push(current);
       current = [item];
-      clusterEnd = item.finishMinute;
+      clusterEnd = item.visualFinishMinute;
     }
   }
   if (current.length) clusters.push(current);
@@ -524,7 +552,7 @@ function layoutOverlaps(items) {
     const withLanes = cluster.map(item => {
       let lane = laneEnds.findIndex(end => end <= item.startMinute);
       if (lane < 0) lane = laneEnds.length;
-      laneEnds[lane] = item.finishMinute;
+      laneEnds[lane] = item.visualFinishMinute;
       return { ...item, lane };
     });
     const laneCount = Math.max(1, laneEnds.length);
@@ -536,7 +564,8 @@ function layoutOverlaps(items) {
 function renderTimelineEvent(item) {
   const r = item.reservation;
   const top = (item.startMinute / 60) * HOUR_HEIGHT;
-  const height = Math.max(22, ((item.finishMinute - item.startMinute) / 60) * HOUR_HEIGHT - 2);
+  const durationHeight = Math.max(22, ((item.finishMinute - item.startMinute) / 60) * HOUR_HEIGHT - 2);
+  const minHeight = Math.max(durationHeight, item.estimatedHeight || 58);
   const width = 100 / item.laneCount;
   const left = item.lane * width;
   const gap = 2;
@@ -554,7 +583,7 @@ function renderTimelineEvent(item) {
   return `<button type="button" class="timeline-event ${reservationPurposeClass(r)}"
     data-reservation-id="${escapeHtml(r.id)}"
     title="${escapeHtml(title)}"
-    style="--event-color:${color};top:${top}px;height:${height}px;left:calc(${left}% + ${gap}px);width:calc(${width}% - ${gap * 2}px)">
+    style="--event-color:${color};top:${top}px;min-height:${minHeight}px;left:calc(${left}% + ${gap}px);width:calc(${width}% - ${gap * 2}px)">
       <span class="event-time">${escapeHtml(r.start)}-${escapeHtml(r.finish)}</span>
       ${showEquipment ? `<span class="event-equipment">${escapeHtml(r.equipment)}</span>` : ''}
       <span class="event-name">${escapeHtml(r.name)}</span>
