@@ -9,7 +9,7 @@
   --accent: #2a66a5;
   --ok: #147d56;
   --error: #b42318;
-  --hour-height: 24px;
+  --hour-height: 32px;
   --time-col: 72px;
   --day-min: 150px;
   --radius: 16px;
@@ -150,7 +150,7 @@ button { cursor: pointer; }
   overscroll-behavior: contain;
 }
 
-/* 全体表示・メンテ情報：24時間を1画面で確認するコンパクト表示 */
+/* 全体表示・メンテ情報：縦方向を少し広げた24時間表示 */
 body.expanded-view-active .calendar-wrap {
   max-height: none;
   overflow-x: auto;
@@ -158,29 +158,29 @@ body.expanded-view-active .calendar-wrap {
 }
 body.expanded-view-active .timeline-corner,
 body.expanded-view-active .timeline-day-head {
-  min-height: 46px;
-  padding: 5px;
+  min-height: 52px;
+  padding: 6px;
 }
 body.expanded-view-active .timeline-day-head .date-label {
   font-size: 11px;
 }
 body.expanded-view-active .time-label {
-  right: 6px;
-  font-size: 9px;
+  right: 7px;
+  font-size: 10px;
 }
 body.expanded-view-active .timeline-event {
-  min-height: 22px;
-  padding: 2px 4px;
+  min-height: 26px;
+  padding: 3px 5px;
   border-left-width: 4px;
-  border-radius: 5px;
+  border-radius: 6px;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 body.expanded-view-active .timeline-event span {
   display: inline;
   margin: 0;
-  font-size: 9px;
-  line-height: 1.15;
+  font-size: 10px;
+  line-height: 1.2;
 }
 body.expanded-view-active .timeline-event span + span::before {
   content: " / ";
@@ -194,12 +194,12 @@ body.expanded-view-active .timeline-event .event-remark {
 }
 body.expanded-view-active .last-use-label,
 body.expanded-view-active .last-use-cell {
-  min-height: 38px;
-  padding: 4px;
-  font-size: 10px;
+  min-height: 50px;
+  padding: 6px;
+  font-size: 11px;
 }
 body.expanded-view-active .last-use-cell strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .timeline {
@@ -323,8 +323,8 @@ body.expanded-view-active .last-use-cell strong {
   display: grid;
   grid-template-columns: var(--time-col) repeat(7, minmax(var(--day-min), 1fr));
   min-width: calc(var(--time-col) + 7 * var(--day-min));
-  border-top: 1px solid #bdc9d6;
-  background: #fafbfd;
+  border-bottom: 1px solid #bdc9d6;
+  background: #f6f9fc;
 }
 .last-use-label,
 .last-use-cell {
@@ -336,8 +336,10 @@ body.expanded-view-active .last-use-cell strong {
   font-size: 11px;
   text-align: center;
 }
-.last-use-label { position: sticky; left: 0; z-index: 5; background: #f2f5f8; font-weight: 800; }
-.last-use-cell strong { display: block; font-size: 12px; }
+.last-use-label { position: sticky; left: 0; z-index: 21; background: #eaf0f6; font-weight: 900; }
+.last-use-cell strong { display: block; font-size: 12px; color: #183153; }
+.last-use-equipment { display: block; margin-top: 2px; font-weight: 800; line-height: 1.25; }
+.last-use-empty { color: var(--muted); }
 
 form { display: grid; gap: 13px; }
 label { display: grid; gap: 6px; font-weight: 700; }

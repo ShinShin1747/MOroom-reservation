@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '20260723-v18-overall-all-maintenance';
+const APP_VERSION = '20260723-v19-last-use-tall';
 
 const OVERALL_TAB_NAME = '全体表示';
 const MAINTENANCE_TAB_NAME = 'メンテ情報';
@@ -23,7 +23,7 @@ const ACTIVE_MAINTENANCE_TYPES = Array.from(new Set(
 const VIEW_TABS = [...ACTUAL_EQUIPMENTS, OVERALL_TAB_NAME, MAINTENANCE_TAB_NAME, EMAIL_CONTENT_TAB_NAME];
 const CACHE_KEY = 'moroom_reservations_cache_v8';
 const LOCAL_KEY = 'equipmentReservations';
-const HOUR_HEIGHT = 24;
+const HOUR_HEIGHT = 32;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 const state = {
@@ -397,6 +397,7 @@ function renderTimeline() {
     const dayItems = items.filter(item => item.date === formatDate(date));
     return `<div class="last-use-cell">${lastUseHtml(dayItems)}</div>`;
   }).join('');
+  const lastUseLabel = isOverallView() ? '最終使用装置' : '最終メンテ装置';
 
   const emptyText = isMaintenanceView()
     ? 'この週のメンテ予約はありません。'
@@ -410,14 +411,14 @@ function renderTimeline() {
       <div class="timeline-corner">時間</div>
       ${dayHeads}
     </div>
+    <div class="last-use-grid">
+      <div class="last-use-label">${escapeHtml(lastUseLabel)}</div>
+      ${lastUse}
+    </div>
     <div class="timeline-body">
       <div class="time-axis">${hourLabels}</div>
       ${tracks}
       ${(items.length || facilityItems.length) ? '' : `<div class="timeline-empty">${escapeHtml(emptyText)}</div>`}
-    </div>
-    <div class="last-use-grid">
-      <div class="last-use-label">最終使用</div>
-      ${lastUse}
     </div>`;
 
   els.timeline.querySelectorAll('[data-reservation-id]').forEach(button => {
@@ -983,11 +984,15 @@ function writeCache(items) {
 }
 
 function lastUseHtml(items) {
-  const valid = items.filter(item => item.finish);
-  if (!valid.length) return '<span>—</span>';
+  const valid = items.filter(item => item.finish && ACTUAL_EQUIPMENTS.includes(item.equipment));
+  if (!valid.length) return '<span class="last-use-empty">予約なし</span>';
   const latest = valid.reduce((max, item) => item.finish > max ? item.finish : max, valid[0].finish);
-  const equipment = Array.from(new Set(valid.filter(item => item.finish === latest).map(item => item.equipment))).join('、');
-  return `<strong>${escapeHtml(latest)}</strong><span>${escapeHtml(equipment)}</span>`;
+  const equipment = Array.from(new Set(
+    valid
+      .filter(item => item.finish === latest)
+      .map(item => item.equipment)
+  )).join('、');
+  return `<strong class="last-use-time">${escapeHtml(latest)}終了</strong><span class="last-use-equipment">${escapeHtml(equipment)}</span>`;
 }
 
 function equipmentColor(equipment) {
