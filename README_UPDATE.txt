@@ -102,3 +102,19 @@ mousers@googlegroups.com へ自動通知されます。
 - 送信元はWebアプリをデプロイしたGoogleアカウントです。
 - そのアカウントが mousers@googlegroups.com へ投稿できる必要があります。
 - Google Groups側の投稿権限で拒否された場合も、登録内容自体は保存されます。
+
+
+【2026-07-22 UI更新】
+全体表示・メンテ情報の時間軸を24px/時間へ圧縮し、表内部の縦スクロールを廃止しました。
+GitHubで以下2ファイルを同名のまま上書きしてください。
+- script_v7_timeline.js
+- style_v7_timeline.css
+Apps Scriptの再デプロイは不要です。Commit後、サイトをCtrl+F5で更新してください。
+
+
+【v18 追加変更】
+・「全体表示」にMOVPEのエピ予約・MOVPEメンテ予約をすべて表示します。
+・同じ週の「付帯設備メンテ」「ガス交換」も全体表示の上部へ表示します。
+・MOVPEメンテは斜線付きカードでエピ予約と区別します。
+・今回の反映に必要なのは index.html / script_v7_timeline.js / style_v7_timeline.css の3ファイルです。
+・Apps Scriptの再デプロイは不要です。

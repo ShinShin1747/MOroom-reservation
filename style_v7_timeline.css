@@ -9,7 +9,7 @@
   --accent: #2a66a5;
   --ok: #147d56;
   --error: #b42318;
-  --hour-height: 50px;
+  --hour-height: 24px;
   --time-col: 72px;
   --day-min: 150px;
   --radius: 16px;
@@ -149,6 +149,59 @@ button { cursor: pointer; }
   background: #fff;
   overscroll-behavior: contain;
 }
+
+/* 全体表示・メンテ情報：24時間を1画面で確認するコンパクト表示 */
+body.expanded-view-active .calendar-wrap {
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+body.expanded-view-active .timeline-corner,
+body.expanded-view-active .timeline-day-head {
+  min-height: 46px;
+  padding: 5px;
+}
+body.expanded-view-active .timeline-day-head .date-label {
+  font-size: 11px;
+}
+body.expanded-view-active .time-label {
+  right: 6px;
+  font-size: 9px;
+}
+body.expanded-view-active .timeline-event {
+  min-height: 22px;
+  padding: 2px 4px;
+  border-left-width: 4px;
+  border-radius: 5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+body.expanded-view-active .timeline-event span {
+  display: inline;
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.15;
+}
+body.expanded-view-active .timeline-event span + span::before {
+  content: " / ";
+  color: #7a8797;
+}
+body.expanded-view-active .timeline-event .event-time {
+  font-weight: 900;
+}
+body.expanded-view-active .timeline-event .event-remark {
+  display: none;
+}
+body.expanded-view-active .last-use-label,
+body.expanded-view-active .last-use-cell {
+  min-height: 38px;
+  padding: 4px;
+  font-size: 10px;
+}
+body.expanded-view-active .last-use-cell strong {
+  font-size: 11px;
+}
+
 .timeline {
   min-width: calc(var(--time-col) + 7 * var(--day-min));
 }
@@ -1159,4 +1212,21 @@ body.shared-info-active .main-view-panel {
   .maintenance-facility-list { grid-template-columns: 1fr; }
   .maintenance-facility-card { grid-template-columns: 1fr; }
   .maintenance-facility-category { grid-row: auto; justify-self: start; }
+}
+
+
+/* v18: overall view shows every maintenance category */
+body.expanded-view-active .timeline-event.purpose-maintenance {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--event-color) 20%, white) 0,
+    color-mix(in srgb, var(--event-color) 20%, white) 6px,
+    color-mix(in srgb, var(--event-color) 10%, white) 6px,
+    color-mix(in srgb, var(--event-color) 10%, white) 12px
+  );
+  border-top-style: dashed;
+  border-bottom-style: dashed;
+}
+body.expanded-view-active .timeline-event.purpose-maintenance .event-purpose {
+  font-weight: 900;
 }

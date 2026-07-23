@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '20260713-v16-facility-maintenance-view';
+const APP_VERSION = '20260723-v18-overall-all-maintenance';
 
 const OVERALL_TAB_NAME = '全体表示';
 const MAINTENANCE_TAB_NAME = 'メンテ情報';
@@ -23,7 +23,7 @@ const ACTIVE_MAINTENANCE_TYPES = Array.from(new Set(
 const VIEW_TABS = [...ACTUAL_EQUIPMENTS, OVERALL_TAB_NAME, MAINTENANCE_TAB_NAME, EMAIL_CONTENT_TAB_NAME];
 const CACHE_KEY = 'moroom_reservations_cache_v8';
 const LOCAL_KEY = 'equipmentReservations';
-const HOUR_HEIGHT = 50;
+const HOUR_HEIGHT = 24;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 const state = {
@@ -369,7 +369,10 @@ function renderTimeline() {
   const titlePrefix = isOverallView() ? '全体表示' : isMaintenanceView() ? 'メンテ情報' : state.view;
   els.weekTitle.textContent = `${titlePrefix}：${formatDate(dates[0])} ～ ${formatDate(dates[6])}`;
   renderLegend(items);
-  const facilitySummary = isMaintenanceView() ? renderFacilityMaintenanceSummary(dates[0], dates[6]) : '';
+  const facilityItems = (isOverallView() || isMaintenanceView()) ? facilitySchedulesForWeek(dates[0], dates[6]) : [];
+  const facilitySummary = (isOverallView() || isMaintenanceView())
+    ? renderFacilityMaintenanceSummary(dates[0], dates[6], facilityItems)
+    : '';
 
   const tracks = dates.map(date => {
     const key = formatDate(date);
@@ -410,7 +413,7 @@ function renderTimeline() {
     <div class="timeline-body">
       <div class="time-axis">${hourLabels}</div>
       ${tracks}
-      ${items.length ? '' : `<div class="timeline-empty">${escapeHtml(emptyText)}</div>`}
+      ${(items.length || facilityItems.length) ? '' : `<div class="timeline-empty">${escapeHtml(emptyText)}</div>`}
     </div>
     <div class="last-use-grid">
       <div class="last-use-label">最終使用</div>
@@ -428,12 +431,9 @@ function renderTimeline() {
     });
   });
 
-  if (!state.initialScrollDone) {
-    requestAnimationFrame(() => {
-      els.calendarWrap.scrollTop = 7 * HOUR_HEIGHT;
-      state.initialScrollDone = true;
-    });
-  }
+  // 全体表示・メンテ情報は24時間をコンパクトに表示し、表内部では縦スクロールしない。
+  els.calendarWrap.scrollTop = 0;
+  state.initialScrollDone = true;
 }
 
 
@@ -450,8 +450,10 @@ function facilitySchedulesForWeek(startDate, endDate) {
     );
 }
 
-function renderFacilityMaintenanceSummary(startDate, endDate) {
-  const facilities = facilitySchedulesForWeek(startDate, endDate);
+function renderFacilityMaintenanceSummary(startDate, endDate, prefetchedFacilities = null) {
+  const facilities = Array.isArray(prefetchedFacilities)
+    ? prefetchedFacilities
+    : facilitySchedulesForWeek(startDate, endDate);
   const cards = facilities.length
     ? facilities.map(item => {
         const dateText = item.startDate === item.endDate
@@ -528,7 +530,7 @@ function layoutOverlaps(items) {
 function renderTimelineEvent(item) {
   const r = item.reservation;
   const top = (item.startMinute / 60) * HOUR_HEIGHT;
-  const height = Math.max(27, ((item.finishMinute - item.startMinute) / 60) * HOUR_HEIGHT - 3);
+  const height = Math.max(22, ((item.finishMinute - item.startMinute) / 60) * HOUR_HEIGHT - 2);
   const width = 100 / item.laneCount;
   const left = item.lane * width;
   const gap = 2;
@@ -543,7 +545,7 @@ function renderTimelineEvent(item) {
     r.remark,
   ].filter(Boolean).join(' / ');
 
-  return `<button type="button" class="timeline-event"
+  return `<button type="button" class="timeline-event ${reservationPurposeClass(r)}"
     data-reservation-id="${escapeHtml(r.id)}"
     title="${escapeHtml(title)}"
     style="--event-color:${color};top:${top}px;height:${height}px;left:calc(${left}% + ${gap}px);width:calc(${width}% - ${gap * 2}px)">
@@ -567,11 +569,15 @@ function renderLegend(items) {
     <span class="legend-item" style="--event-color:${equipmentColor(eq)}">
       <span class="legend-dot"></span>${escapeHtml(eq)}
     </span>`).join('');
-  const facilityLegend = isMaintenanceView() && facilitySchedulesForWeek(state.weekStart, addDays(state.weekStart, 6)).length
+  const purposeLegend = isOverallView()
+    ? `<span class="legend-item purpose-legend purpose-epi"><span class="legend-dot"></span>エピ</span>
+       <span class="legend-item purpose-legend purpose-maintenance"><span class="legend-dot"></span>MOVPEメンテ</span>`
+    : '';
+  const facilityLegend = (isOverallView() || isMaintenanceView()) && facilitySchedulesForWeek(state.weekStart, addDays(state.weekStart, 6)).length
     ? `<span class="legend-item facility-maintenance-legend"><span class="legend-dot"></span>付帯設備メンテ</span>
        <span class="legend-item facility-gas-legend"><span class="legend-dot"></span>ガス交換</span>`
     : '';
-  els.viewLegend.innerHTML = equipmentLegend + facilityLegend;
+  els.viewLegend.innerHTML = equipmentLegend + purposeLegend + facilityLegend;
 }
 
 function renderReservationList() {
@@ -1344,7 +1350,9 @@ function renderSharedInformation() {
   renderImportantNoticeBanner();
   renderNoticeList();
   renderFacilityCalendar();
-  if (typeof isMaintenanceView === 'function' && isMaintenanceView() && typeof renderAll === 'function') {
+  if (typeof renderAll === 'function' &&
+      ((typeof isMaintenanceView === 'function' && isMaintenanceView()) ||
+       (typeof isOverallView === 'function' && isOverallView()))) {
     renderAll();
   }
 }
